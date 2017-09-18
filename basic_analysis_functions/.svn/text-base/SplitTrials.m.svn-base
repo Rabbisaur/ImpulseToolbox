@@ -1,0 +1,115 @@
+function [TrialIdx,CorrectRate] = SplitTrials(path,args,mergematrix)
+% args(1) -- ValidOnly
+% args(2) -- merge conditions
+% args(3) -- 0 = Not On rf, 1 = On rf, 2 = both
+% args(4) -- 0 = incorrect, 1 = correct, 2 = both
+
+% Expmark(1,:) -- Trial start time
+% Expmark(2,:) -- Trial condition ID
+% Expmark(3,:) -- Abort signal time stamp
+% Expmark(4,:) -- Trial end time
+% Expmark(5:100,:) -- Trigger time stamp
+%
+% mergematrix: ({CND0:CNDx},{CNDy:CNDz},...)
+
+switch nargin
+    case 1
+        args(1) = 1;
+        args(2) = 0;
+        args(3) = 2;
+        args(4) = 2;
+    case 2
+        if args(2)
+            error('You must specify a mergematrix')
+        end
+    case 3
+        % do nothing
+    otherwise
+        error('Use: [ConditionIndex] = SplitTrials(path,args,mergematrix)')
+end
+CorrectRate = -1;
+if args(1)
+    ValidOnly = 1;
+end
+if ~exist(path,'dir')
+    error([path ' not exist!'])
+else
+    ExpmarkPath = [path '/' 'Expmark.mat'];
+    MbmInfoPath = [path '/' 'mbminfo.mat'];
+end
+if ~exist(ExpmarkPath,'file')
+    error([ExpmarkPath ' not exist, load machine data first!'])
+end
+if ~exist(MbmInfoPath,'file')
+    error([MbmInfoPath ' not exist!'])
+end
+% load Expmark
+load(ExpmarkPath)
+% load MbmInfo, MbmNumtrials, MBMFieldNames
+load(MbmInfoPath)
+% Trial validity is defined as has trigger and didn't abort
+ValidTrialsIdx = Expmark(5,:) ~= 0 & Expmark(3,:) == 0;
+TrialConditions = double(Expmark(2,:));
+Conditions = unique(TrialConditions);
+NumConditions = numel(Conditions);
+NevNumtrials = size(Expmark,2);
+% Check MBM consistancy
+stimIDpoz = strcmp(MBMFieldNames,'stimID');
+MbmTrialConditions = MbmInfo(stimIDpoz,:);
+if NevNumtrials ~= MbmNumtrials
+    fprintf('***********************************************************\n')
+    fprintf('* Warning! Number of trials in NEV and MBM doesn''t match! *\n')
+    fprintf('***********************************************************\n')
+    fprintf('Number Trials in NEV = %d\n',NevNumtrials)
+    fprintf('Number Trials in MBM = %d\n',MbmNumtrials)
+    MbmConsistantFlag = 0;
+elseif ~same(TrialConditions(ValidTrialsIdx),MbmTrialConditions(ValidTrialsIdx))
+    MbmConsistantFlag = 0;
+else
+    MbmConsistantFlag = 1;
+end
+if MbmConsistantFlag
+    OnRFpoz = strcmp(MBMFieldNames,'taskOnRf');
+    OnRFTrialsIdx = logical(MbmInfo(OnRFpoz,:));
+    RespCodePoz = strcmp(MBMFieldNames,'respCode');
+    CorrectIdx = MbmInfo(RespCodePoz,:) == 15 | MbmInfo(RespCodePoz,:) == 17;
+    IncorrectIdx = MbmInfo(RespCodePoz,:) == 16 | MbmInfo(RespCodePoz,:) == 18;
+end
+ConditionIndex = false(NumConditions,NevNumtrials);
+TrialIdx = false(NumConditions,NevNumtrials);
+for idx = 1:NumConditions
+    ConditionIndex(idx,:) = TrialConditions == Conditions(idx);
+    if ValidOnly
+        TrialIdx(idx,:) = ConditionIndex(idx,:) & ValidTrialsIdx;
+    end
+    if MbmConsistantFlag && args(3) == 0 % Get Not On RF
+        TrialIdx(idx,:) = TrialIdx(idx,:) & ~OnRFTrialsIdx;
+    end
+    if MbmConsistantFlag && args(3) == 1 % Get On RF
+        TrialIdx(idx,:) = TrialIdx(idx,:) & OnRFTrialsIdx;
+    end
+    if MbmConsistantFlag && args(4) == 0 % Get Incorrect
+        TrialIdx(idx,:) = TrialIdx(idx,:) & IncorrectIdx;
+    end
+    if MbmConsistantFlag && args(4) == 1 % Get Correct
+        TrialIdx(idx,:) = TrialIdx(idx,:) & CorrectIdx;
+    end
+end
+if MbmConsistantFlag
+end
+if args(2)
+    % merge same conditions with different condition ID
+    NewNumConditions = numel(mergematrix);
+    NewConditionIndex = false(NewNumConditions,NevNumtrials);
+    for idx = 1:NewNumConditions
+        NewConditionIndex(idx,:) = sum(ConditionIndex(mergematrix{idx},:),1);
+        NewTrialIdx(idx,:) = sum(TrialIdx(mergematrix{idx},:),1);
+        % get Correct Rate
+        if MbmConsistantFlag && args(4) == 1
+            NumCorrectTrials = sum(CorrectIdx & NewConditionIndex(idx,:) & ValidTrialsIdx);
+            TotalConditionTrials = sum(NewConditionIndex(idx,:) & ValidTrialsIdx);
+            CorrectRate(idx) = NumCorrectTrials/TotalConditionTrials * 100;
+        end
+    end
+    TrialIdx = logical(NewTrialIdx);
+end

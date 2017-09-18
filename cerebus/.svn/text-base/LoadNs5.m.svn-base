@@ -1,0 +1,353 @@
+function LoadNs5(filepath,savewave,xEstimation)
+% use: LoadNs5(filepath,savewave)
+% filepath - full or relative path to the ns5 file
+% savewave - 0,1, whether save spike waveform or not, default = 1
+% xEstimation - default -5, auto thresholding with x times estimation
+%
+% LoadNs5 will filter 30KHz Nsx files and find zero phase shifted spike
+% time, construct experiment event matrix from nev and save wave form.
+%
+% wrote and revised by Wang Feng @ bnu
+%
+
+% verify the validity of input arguments
+switch nargin
+    case 1
+        savewave = 1; % spike sorting is very important and mean to be the very next step before any analysis. So if you don't want store spike wave form, state it explicitly.
+    case 2
+        xEstimation = -5; % auto thresholding with x times estimation
+    case 3
+        % currently doing nothing
+    otherwise
+        fprintf('failure: LoadNs5 accepts 3 input arguments.\n'); return;
+end
+tic;
+%% configurations all goes here
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Get the full path of the ImpulseToolbox root  %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+mfilepath = mfilename('fullpath'); % get the full path of the function .m file
+idx = strfind(mfilepath,'/cerebus'); % find the index to the end of the ImpulseToolbox by the knowledge of the relative path of the function .m file in the Impulsetoolbox.
+Impulse_root_path = mfilepath(1:idx); % get the full path of the root of the ImpulseToolbox
+% load the filter coefficients
+% path = [Impulse_root_path '/cerebus/filter/iirhipass300.mat'];
+% load(path);
+% SOS=SOS;
+% G=G;
+path = [Impulse_root_path '/cerebus/filter/firhipass300.mat'];
+load(path);
+% Num=Num;
+
+% [b,a] = sos2tf(SOS,G);
+SampleRate = 30000;
+% WinSize = 1.5; % ms
+% SamplePoints = ceil(SampleRate / 1000 * WinSize);
+% SamplePoints = 64;
+ref_period = 1; %ms
+% PointShift = 20; %round(SampleRate / 1000 * TimeShift);
+% sPointShift = round(PointShift / 2); % used for peak alignment
+AutoThresholding = 1;
+% thresprc = 0.2; % auto threshold percentage. Signal exceeded this percentage will considered a spike
+MaxNumElectordes = 96;
+%% construct experiment event matrix from nev file
+% check the validity of the nev & mbm files specified
+Ns5Path = [filepath(1: end-3) 'ns5'];
+if exist(Ns5Path,'file') == 2
+    %     fprintf('ns5 file found ...\n');
+    % create folders for storing mat files
+    matdir = filepath(1: end-4);
+    if exist(matdir,'dir') == 7
+        rmdir(matdir,'s');
+    end
+    if mkdir(matdir)
+        %         fprintf('%s created\n',matdir)
+    else
+        error('matlab:mkdirfailed','failed to make directory for the mat file')
+    end
+    fileattrib(matdir, '+w');
+    nevpath = [filepath(1: end-3) 'nev'];
+    if exist(nevpath,'file') == 2
+        %         fprintf('nev file found ...\n');
+    else
+        error('matlab:filenotfound','nev file not found!')
+    end
+else
+    error('matlab:filenotfound','ns5 file not found!');
+end
+% disp('the file path is valid, starting to process data ...');
+% process nev file
+% load Nev data packets
+nevpath = [filepath(1:end-4) '.nev'];
+expmarkpath = [filepath(1:end-4) '/' 'Expmark.mat'];
+LoadNev(nevpath,1:MaxNumElectordes,savewave);
+load(expmarkpath);
+% Expmark = Expmark;
+%% load 30KHz continuous signal trial by trial hi pass filter find spike and save wave form.
+% process basic header
+NsxID = fopen(Ns5Path,'r');
+fseek(NsxID, 0, 1);
+NsxSize = uint64(ftell(NsxID));
+fprintf('NS5 file size is %dMB\n',NsxSize/1024^2)
+frewind(NsxID);
+NsxBasic.FileType = sprintf('%s', fread(NsxID, 8, '*char'));
+% check file type ID
+if ~strcmp(NsxBasic.FileType, 'NEURALCD')
+    error('NS5 FileType mismatch!')
+end
+VerNum = fread(NsxID, 2, 'uchar=>uchar');
+NsxBasic.FileVersion = ['Spec. ' num2str(VerNum(1)) '.' num2str(VerNum(2))];
+NsxBasic.HeaderSize = fread(NsxID, 1, 'uint32=>uint32');
+NsxBasic.Label = sprintf('%s', fread(NsxID, 16, 'char=>uint32'));
+% NsxBasic.Comment = sprintf('%s', fread(NsxID, 256, '*char'));
+fseek(NsxID, 256, 0);
+NsxBasic.Period = fread(NsxID, 1, 'uint32=>uint32');
+NsxBasic.ClockFs = fread(NsxID, 1, 'uint32=>uint32');
+NsxBasic.Fs = NsxBasic.ClockFs/NsxBasic.Period;
+NsxBasic.TimeOrigin = fread(NsxID, [1 8], 'uint16=>uint16');
+fprintf('NS5 file created at %d:%d:%d %d-%d-%d\n',NsxBasic.TimeOrigin(5),NsxBasic.TimeOrigin(6),NsxBasic.TimeOrigin(7), ...
+    NsxBasic.TimeOrigin(1),NsxBasic.TimeOrigin(2),NsxBasic.TimeOrigin(4));
+NsxBasic.NumElec = fread(NsxID, 1, 'uint32=>uint32');
+CurrPos = ftell(NsxID);
+if CurrPos~=314
+    error('FAILURE: Error in reading basic header');
+end
+if CurrPos+NsxBasic.NumElec*66~=NsxBasic.HeaderSize
+    error('FAILURE: Error in the size of extended headers.');
+end
+fclose(NsxID);
+% process extended headers
+NsxID = fopen(Ns5Path);
+fseek(NsxID, 314, -1);
+NsxExtend = cell(NsxBasic.NumElec, 1);
+PacketID = fread(NsxID, [2 NsxBasic.NumElec], '2*char=>char', 66-2);
+ElecOrder = zeros(NsxBasic.NumElec, 1);
+for i = 1:NsxBasic.NumElec
+    CurrStartPos = CurrPos+(i-1)*66+2;  %electrode ID
+    fseek(NsxID, CurrStartPos, 'bof');
+    NsxExtend{i,1}.PacketID = sprintf('%s', PacketID(:,i));
+    switch NsxExtend{i,1}.PacketID
+        case 'CC'  %continuous channels
+            ElecOrder(i,1) = fread(NsxID, 1, 'uint16');
+            NsxExtend{i,1}.ElecID = ElecOrder(i,1);
+            NsxExtend{i,1}.ElecLabel = sprintf('%s', fread(NsxID, 16, 'char=>char'));
+            NsxExtend{i,1}.Connector = char(64+fread(NsxID, 1, 'char=>char'));
+            NsxExtend{i,1}.Pin = fread(NsxID, 1, 'char=>char');
+            NsxExtend{i,1}.MinDigitalValue = fread(NsxID, 1, 'int16=>int16');
+            NsxExtend{i,1}.MaxDigitalValue = fread(NsxID, 1, 'int16=>int16');
+            NsxExtend{i,1}.MinAnalogValue = fread(NsxID, 1, 'int16=>int16');
+            NsxExtend{i,1}.MaxAnalogValue = fread(NsxID, 1, 'int16=>int16');
+            NsxExtend{i,1}.AnalogUnit = sprintf('%s', fread(NsxID, 16, 'char=>char'));  %mv/uv
+            NsxExtend{i,1}.HighCutFreq = fread(NsxID, 1, 'uint32=>uint32');
+            NsxExtend{i,1}.HighCutOrder = fread(NsxID, 1, 'uint32=>uint32');  %0 = NONE
+            NsxExtend{i,1}.HighCutType = fread(NsxID, 1, 'uint16=>uint16');
+            NsxExtend{i,1}.LowCutFreq = fread(NsxID, 1, 'uint32=>uint32');
+            NsxExtend{i,1}.LowCutOrder = fread(NsxID, 1, 'uint32=>uint32');  %0 = NONE
+            NsxExtend{i,1}.LowCutType = fread(NsxID, 1, 'uint16=>uint16');
+        otherwise
+            disp('FAILURE: No current PacketID was found.');
+            return;
+    end
+end
+if numel(ElecOrder)~=numel(unique(ElecOrder))
+    disp('Error in reading extended headers.');
+    return;
+end
+CurrPos = ftell(NsxID);
+if CurrPos~=NsxBasic.HeaderSize
+    disp('FAILURE: Error in reading extended headers');
+    return;
+end
+clear VerNum PacketID CurrStartPos
+fclose(NsxID);
+% load trial data into memory
+NsxID = fopen(Ns5Path);
+fseek(NsxID,CurrPos,-1);
+NumValidElec = numel(ElecOrder);
+fprintf('Got %d valid electrodes.\n',NumValidElec);
+NumTrials = size(Expmark,2);
+ValidTrials = Expmark(3,:)==0 & Expmark(5,:) ~= 0;
+fprintf('With total %d trials.\n',NumTrials);
+SpikeCache = cell(NumValidElec,NumTrials);
+if savewave
+    WaveCache = cell(NumValidElec,NumTrials);
+end
+Header = fread(NsxID,1,'int8=>int8');
+if Header ~= 1
+    error('Header seek error, abort!');
+end
+Timestamp = fread(NsxID,1,'uint32=>uint32');
+NumDP = fread(NsxID,1,'uint32=>uint32');
+TrialOneLength = Expmark(4,1)-Expmark(1,1);
+if NumDP ~= TrialOneLength;
+    fprintf('NumDP is %d while it should be %d\nInvalid first trial, start from data packet #2\n',NumDP,TrialOneLength);
+    fread(NsxID,[NumValidElec,NumDP],'int16=>int16');
+else
+    fseek(NsxID,CurrPos,-1);
+end
+TrialCounter = 0;
+% Thresholded = 0;
+% Kernel = ones(round(SampleRate / 1000 * RefPeriod),1);
+% NumCores = matlabpool('size');
+% if NumCores == 0
+%     NumCores = 1; % if matlabpool('size') returned 0, it means only using 1 cpu core
+% end
+for TrialIdx = 1:NumTrials
+    if ~ValidTrials(TrialIdx)
+        Header = fread(NsxID,1,'int8=>int8');
+        if Header ~= 1
+            error('Header seek error, abort!');
+        end
+        Timestamp = fread(NsxID,1,'uint32=>uint32');
+        NumDP = fread(NsxID,1,'uint32=>uint32');
+        if NumDP ~= Expmark(4,TrialIdx)-Expmark(1,TrialIdx)
+            error(['NumDP is ' num2str(NumDP) ' while we thought it should be ' num2str(Expmark(4,TrialIdx)-Expmark(1,TrialIdx))])
+        end
+        jumpstepsize = NumValidElec * NumDP * 2; % int16 has 2 bytes
+        fseek(NsxID,jumpstepsize,0);
+        %         fprintf('Trial # %d invalid, skip!\n',i);
+        continue
+    end
+    Header = fread(NsxID,1,'int8=>int8');
+    if Header ~= 1
+        error('Header seek error, abort!');
+    end
+    Timestamp = fread(NsxID,1,'uint32=>uint32');
+    if Timestamp ~= Expmark(1,TrialIdx)
+        CalibrationVal = Timestamp-Expmark(1,TrialIdx);
+    end
+    NumDP = fread(NsxID,1,'uint32=>uint32');
+    if NumDP ~= Expmark(4,TrialIdx)-Expmark(1,TrialIdx)
+        error(['NumDP is ' num2str(NumDP) ' while we thought it should be ' num2str(Expmark(4,TrialIdx)-Expmark(1,TrialIdx))])
+    end
+    Data = double(fread(NsxID,[NumValidElec,NumDP],'int16=>int16'))';
+    %fprintf('Processing trial #%d ...\n',TrialIdx);
+    fprintf('.');
+    TrialCounter =TrialCounter +1;
+    if mod(TrialCounter,30) == 0
+        fprintf('%d\n',TrialCounter)
+    end
+%     dataIdxtemp = 1:NumValidElec;
+%     leftover = mod(NumValidElec,NumCores);
+%     dataIdx = [dataIdxtemp,nan(1,NumCores-leftover)];
+%     splitIdx = reshape(dataIdx,NumCores,[]);
+%     fprintf('NumCores = %d',NumCores)
+%     splitIdx = mat2cell(splitIdx,ones(NumCores,1),size(splitIdx,2));
+      C_Data = filtfilt(Num,1,Data);
+%     for coreIdx = 1:NumCores
+%         splitIdx{coreIdx}(isnan(splitIdx{coreIdx})) = [];
+%         C_Data = Data(:,splitIdx{coreIdx});
+%     end
+%     spmd
+        % zero phase distortion band pass filtering the data, 300-3000Hz
+%         C_Data = filtfilt(SOS,G,Data(:,splitIdx{labindex}));
+        
+        % for the first trial, estimate threshold for all electrode. Threshold
+        % remains unchanged in all following trials
+        if AutoThresholding % && ~Thresholded
+            C_Threshold = xEstimation * median(abs(C_Data),1)/0.6745;
+%             Thresholded = 1;
+        end
+        C_poz = C_Data - repmat(C_Threshold,NumDP,1);
+        C_poz = int8(C_poz < 0);
+%         for k = 1:2
+%             C_poz = xcorr2(Kernel,C_poz);
+%         end
+        % There is a much simpler way to do spike detection
+        %       
+        C_poz_shifted = [zeros(1,size(C_poz,2),'int8'); C_poz(1:end-1,:)];
+        C_poz_diff = C_poz - C_poz_shifted;
+        
+        if savewave
+            % pad C_Data with 64 zeros at both end
+            paddata = zeros(64,size(C_Data,2));
+            C_Data_padded = [paddata;C_Data;paddata];
+        end
+        C_SpikeStamp = cell(1,size(C_poz,2));
+        C_waveform = cell(1,size(C_poz,2));
+        for i = 1:size(C_poz,2)
+%             C_rawStamp = find(C_poz(:,i) == 1);
+%             C_odd = C_rawStamp(1:2:end,:);
+            C_odd = find(C_poz_diff(:,i) == 1);
+            % refractory period check
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            C_odd_diff = diff(C_odd);
+            poz = find(C_odd_diff <= (ref_period/1000*SampleRate))+1;
+            C_odd(poz) = [];            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            C_SpikeStamp{i} = C_odd - (double(Expmark(5,TrialIdx))-double(Expmark(1,TrialIdx)))+double(CalibrationVal);
+            if savewave
+                % for performance reason
+                % we first take 19 points prior and 44 points after the
+                % SpikeStamp, including the SpikeStamp forms a 64 point
+                % pre-aligned waveform
+                % we shall later see if we can afford align while getting
+                % waveform
+                C_wavestart = C_odd - 19 + 64; % 64 is the length of padded data
+                C_waveIndex = repmat(C_wavestart,1,64) + repmat(0:63,numel(C_wavestart),1);
+                C_waveform{i} = reshape(C_Data_padded(C_waveIndex,i),[],64)';
+            end
+%             close all
+%             figure(1),hold on
+%             plot(Data(:,i),'black')
+%             plot(C_Data(:,i),'red')
+%             plot(C_odd,repmat(C_Threshold(i),size(C_odd)),'go')
+        end
+%     end
+    % gather data back for store
+%     for coreIdx = 1:NumCores
+        SpikeStamp = C_SpikeStamp;%{coreIdx};
+        WaveForm = C_waveform;%{coreIdx};
+        SpikeCache(:,TrialIdx) = SpikeStamp; %(splitIdx{coreIdx},TrialIdx) = SpikeStamp;
+        WaveCache(:,TrialIdx) = WaveForm; %(splitIdx{coreIdx},TrialIdx) =  WaveForm;
+%     end
+    %%%%%%%%%%%%%%%%%%%% DEBUG %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%             core = 1; index =2;
+%             a = C_Data{core};
+%             b = C_Threshold{core};
+%             c = C_SpikeStamp{core};
+%             e = C_waveform{core};
+%             d = repmat(c{index}- 19 + 64,1,64) + repmat(0:63,numel(c{index}),1);
+%             f = real(fft(C_Data{core}));
+%             figure, hold on, plot(a(:,index),'black')
+%             plot([0 length(a(:,index))],[b(index),b(index)],'red')
+%             plot(c{index}+64,repmat(b(index),numel(c{index}),1),'greeno')
+%             plot(reshape(d,[],1),b(index)-5,'bluex')
+%             figure
+%             plot(e{index},'black')
+%             figure
+%             plot(f(1:3000),'black')
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end
+fprintf('\n')
+% save spike time and wave form to disk
+matdir = filepath(1:end-4);
+fprintf('Saving everything to files ...');
+Spike = cell(MaxNumElectordes,1);
+% save elec order
+filename = [matdir '/' 'Elec5.mat'];
+elec = ElecOrder;
+save(filename,'elec');
+for i = 1:NumValidElec
+    Spike{ElecOrder(i)} = SpikeCache(i,:);
+end
+filename = [matdir '/' 'Spike5.mat'];
+save(filename,'Spike');
+if savewave
+    Waveform = cell(MaxNumElectordes,1);
+    for i = 1:NumValidElec
+        filename = [matdir '/' 'Waveform5.mat'];
+        temp = WaveCache(i,ValidTrials);
+        Waveform{ElecOrder(i)} = cell2mat(temp);
+    end
+    save(filename,'Waveform');
+end
+TotalTimeUsed = toc;
+TrialsPerSecond = TrialCounter/TotalTimeUsed;
+fprintf('Done!\n');
+%% finish up
+TempDir = [nevpath(1:end-4) '/' 'temp'];
+if exist(TempDir,'dir') == 7
+    rmdir(TempDir,'s');
+end
+fprintf('All done, at %f trials per second.\n',TrialsPerSecond)
+return

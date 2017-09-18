@@ -1,0 +1,393 @@
+function merge2matdata(path1,path2,savepath,restrict)
+% Usage: merge2matdata(path1,path2,savepath,restricted)
+% restricted: 0 = do not check log, 1 = check log file
+% merge TWO matdata session that have identical conditions but can have
+% different number of trials.
+
+switch nargin
+    case 3
+        restrict = 1;
+    case 4
+        % do nothing
+    otherwise
+        error('Usage: merge2matdata(path1,path2,savepath,restricted)')
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% config
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% path1='/home/wang/testground/G121219_e12_detection_008';
+% path2='/home/wang/testground/G121219_e12_detection_006';
+% savepath = '/home/wang/testground/G121219_e12';
+withns5 = zeros(2,1);
+savewave = zeros(2,1);
+savewave5 = zeros(2,1);
+exceptionfieldidx = [1,3,4,6,9,10,11,12,13,15,118];
+% restricted = 1;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% load session one
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+filepath = [path1 '/' 'ArrayMap.mat'];
+load(filepath);
+filepath = [path1 '/' 'elec.mat'];
+load(filepath);
+filepath = [path1 '/' 'Expmark.mat'];
+load(filepath);
+filepath = [path1 '/' 'EyeData.mat'];
+load(filepath);
+filepath = [path1 '/' 'LogInfo.mat'];
+load(filepath);
+filepath = [path1 '/' 'mbminfo.mat'];
+load(filepath);
+filepath = [path1 '/' 'nevbasic.mat'];
+load(filepath);
+filepath = [path1 '/' 'nevextend.mat'];
+load(filepath);
+filepath = [path1 '/' 'RFtuningParam.mat'];
+load(filepath);
+filepath = [path1 '/' 'Spike.mat'];
+load(filepath);
+% if load waveform
+% store data in a 2 by 1 structure variable
+Data(1).ArrayMap = ArrayMap;
+Data(1).Expmark = Expmark;
+Data(1).EyeData = EyeData;
+Data(1).EyeTrace = EyeTrace;
+Data(1).LogInfo = LogInfo;
+Data(1).MBMFieldNames = MBMFieldNames;
+Data(1).MbmInfo = MbmInfo;
+Data(1).MbmNumtrials = MbmNumtrials;
+Data(1).NevBasic = NevBasic;
+Data(1).NevExtended = NevExtended;
+Data(1).RFtuningParam = RFtuningParam;
+Data(1).Spike = Spike;
+Data(1).elec = elec;
+
+% if load ns5, withns5 flag set to 1
+filepath = [path1 '/' 'Elec5.mat'];
+if exist(filepath,'file') == 2
+    withns5(1)=1;
+    load(filepath);
+    filepath = [path1 '/' 'Spike5.mat'];
+    load(filepath);
+    Data(1).Elec5 = elec;
+    Data(1).Spike5 = Spike;   
+end
+% check and load Waveform
+filepath = [path1 '/' 'Waveform.mat'];
+if exist(filepath,'file') == 2
+    savewave(1) = 1;
+    load(filepath)
+    Data(1).Waveform = Waveform;
+end
+% check and load Waveform5
+filepath = [path1 '/' 'Waveform5.mat'];
+if  exist(filepath,'file') == 2
+    savewave5(1) = 1;
+    load(filepath)
+    Data(1).Waveform5 = Waveform;
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% load session two
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+filepath = [path2 '/' 'ArrayMap.mat'];
+load(filepath);
+filepath = [path2 '/' 'elec.mat'];
+load(filepath);
+filepath = [path2 '/' 'Expmark.mat'];
+load(filepath);
+filepath = [path2 '/' 'EyeData.mat'];
+load(filepath);
+filepath = [path2 '/' 'LogInfo.mat'];
+load(filepath);
+filepath = [path2 '/' 'mbminfo.mat'];
+load(filepath);
+filepath = [path2 '/' 'nevbasic.mat'];
+load(filepath);
+filepath = [path2 '/' 'nevextend.mat'];
+load(filepath);
+filepath = [path2 '/' 'RFtuningParam.mat'];
+load(filepath);
+filepath = [path2 '/' 'Spike.mat'];
+load(filepath);
+% if load waveform
+% store data in a 2 by 1 structure variable
+Data(2).ArrayMap = ArrayMap;
+Data(2).Expmark = Expmark;
+Data(2).EyeData = EyeData;
+Data(2).EyeTrace = EyeTrace;
+Data(2).LogInfo = LogInfo;
+Data(2).MBMFieldNames = MBMFieldNames;
+Data(2).MbmInfo = MbmInfo;
+Data(2).MbmNumtrials = MbmNumtrials;
+Data(2).NevBasic = NevBasic;
+Data(2).NevExtended = NevExtended;
+Data(2).RFtuningParam = RFtuningParam;
+Data(2).Spike = Spike;
+Data(2).elec = elec;
+% if load ns5, withns5 flag set to 1
+filepath = [path2 '/' 'Elec5.mat'];
+if exist(filepath,'file') == 2
+    withns5(2)=1;
+    load(filepath);
+    filepath = [path2 '/' 'Spike5.mat'];
+    load(filepath);
+    Data(2).Elec5 = elec;
+    Data(2).Spike5 = Spike;   
+end
+% check and load Waveform
+filepath = [path2 '/' 'Waveform.mat'];
+if exist(filepath,'file') == 2
+    savewave(2) = 1;
+    load(filepath)
+    Data(2).Waveform = Waveform;
+end
+% check and load Waveform5
+filepath = [path2 '/' 'Waveform5.mat'];
+if  exist(filepath,'file') == 2
+    savewave5(2) = 1;
+    load(filepath)
+    Data(2).Waveform5 = Waveform;
+end
+% clear no longer needed variables
+clearvars -except Data withns5 exceptionfieldidx restrict savewave savewave5 savepath
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% check log to see if they have identical conditions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+NumFields(1) = numel(Data(1).LogInfo.fieldnames);
+NumFields(2) = numel(Data(2).LogInfo.fieldnames);
+if NumFields(1) ~= NumFields(2)
+    error('Number of fields does not match in the log between the two sessions')
+end
+% check field names
+for fieldidx = 1:NumFields(1)
+    if ~strcmp(Data(1).LogInfo.fieldnames{fieldidx},Data(2).LogInfo.fieldnames{fieldidx})
+        error(['The name of log field #' num2str(fieldidx) ' does not match between the two sessions'])
+    end
+end
+% check field values, must be identical except number of blocks
+if restrict
+    for fieldidx = 1:NumFields(1)
+        if ~isempty(intersect(fieldidx,exceptionfieldidx))
+            continue
+        end
+        if ischar(Data(1).LogInfo.fieldvalue{fieldidx})
+            flag = ~strcmp(Data(1).LogInfo.fieldvalue{fieldidx},Data(2).LogInfo.fieldvalue{fieldidx});
+        elseif isnumeric(Data(1).LogInfo.fieldvalue{fieldidx})
+            flag = Data(1).LogInfo.fieldvalue{fieldidx} ~= Data(2).LogInfo.fieldvalue{fieldidx};
+        end
+        if flag
+            error(['Value in the log field #' num2str(fieldidx) ' does not match between the two sessions'])
+        end
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% check ArrayMap
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if ~issame(Data(1).ArrayMap,Data(2).ArrayMap)
+    error('Array map different between the two sessions!')
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% check Nev Extended Header
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if restrict
+    if ~issame(Data(1).NevExtended,Data(2).NevExtended)
+        error('NEV extended header in two sessions do not match, automatic merge is not possible')
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% check if Nev elec is the same
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if restrict
+    if ~issame(Data(1).elec,Data(2).elec)
+        error('Nev eletrode in the two sessions does not match!')
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Ns5 specific checking
+% check Elec5
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if restrict
+    if ~issame(Data(1).Elec5,Data(2).Elec5)
+        error('Ns5 electrode in the two sessions does not match')
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% merge data
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Array map remain unchanged as Data(1)
+Data(3).ArrayMap = Data(1).ArrayMap;
+% merge Expmark by horizontal cat Data(1) and Data(2)
+Data(3).Expmark = [Data(1).Expmark,Data(2).Expmark];
+% merge EyeData field by field
+EyeData1NumTrials=max(Data(1).EyeData.TrialNum);
+% TrialNum, start from Data(1) and vertically cat Data(1) and Data(2)
+Data(3).EyeData.TrialNum = [Data(1).EyeData.TrialNum;(Data(2).EyeData.TrialNum+EyeData1NumTrials)];
+% StimID, vertically CAT Data(1) and Data(2)
+Data(3).EyeData.StimID = [Data(1).EyeData.StimID;Data(2).EyeData.StimID];
+% interms, vertically CAT Data(1) and Data(2)
+Data(3).EyeData.interms = [Data(1).EyeData.interms;Data(2).EyeData.interms];
+% xy, vertically CAT Data(1) and Data(2)
+Data(3).EyeData.xy = [Data(1).EyeData.xy;Data(2).EyeData.xy];
+% xydeg, vertically CAT Data(1) and Data(2)
+Data(3).EyeData.xydeg = [Data(1).EyeData.xydeg;Data(2).EyeData.xydeg];
+% xypairs, horizontally CAT Data(1) and Data(2)
+Data(3).EyeData.xypairs = [Data(1).EyeData.xypairs,Data(2).EyeData.xypairs];
+% EyeTrace, is a 1 by number of trials struct array, horizontal CAT
+Data(3).EyeTrace = [Data(1).EyeTrace, Data(2).EyeTrace];
+% Merge log info using only one data.
+Data(3).LogInfo = Data(1).LogInfo;
+% Merge MBMFieldNames by keeping only one of them, since they are the same.
+Data(3).MBMFieldNames = Data(1).MBMFieldNames;
+% Merge MbmInfo by horizontal CAT
+Data(3).MbmInfo = [Data(1).MbmInfo,Data(2).MbmInfo];
+% Merge sMbmInfo by reconstructing from MBMFieldNames and MbmInfo
+cMbmInfo = mat2cell(Data(3).MbmInfo,ones(size(Data(3).MbmInfo,1),1));
+Data(3).sMbmInfo = cell2struct(cMbmInfo,Data(3).MBMFieldNames);
+% Merge MbmNumbtrials by add them up
+Data(3).MbmNumtrials = Data(1).MbmNumtrials+Data(2).MbmNumtrials;
+% Merge NevBasic by keeping only one of them
+Data(3).NevBasic = Data(1).NevBasic;
+% Merge NevExtended by keeping only one of them, since they are the same.
+Data(3).NevExtended = Data(1).NevExtended;
+% Merge RftuningParam by keeping only one of them, given all data to be
+% merged is collected within the same day.
+Data(3).RFtuningParam = Data(1).RFtuningParam;
+
+% Merge Spike by horizontally CAT in each electrode
+NumberElec = numel(Data(1).Spike);
+for elecIdx = 1:NumberElec
+    if isempty(Data(1).Spike{elecIdx}) || isempty(Data(2).Spike{elecIdx})
+        Data(3).Spike{elecIdx} = [];
+    else
+        Data(3).Spike{elecIdx} = [Data(1).Spike{elecIdx},Data(2).Spike{elecIdx}];
+    end
+end
+if restrict
+    % Merge NEV elec by keeping only one of them, since they are the same.
+    Data(3).elec = Data(1).elec;
+else
+    % Merge NEV elec by keeping the intersection
+    Data(3).elec = intersect(Data(1).elec,Data(2).elec);
+end
+
+% check if both have ns5
+if withns5(1) && withns5(2)
+    if restrict
+        % Merge Elec5 by keeping only one of them, since they are the same
+        Data(3).Elec5 = Data(1).Elec5;
+    else
+        % Merge Elec5 by keeping the intersection
+        Data(3).Elec5 = intersect(Data(1).Elec5,Data(2).Elec5);
+    end
+    % Merge Spike5 by horizontally CAT in each eletrode
+    NumberElec = numel(Data(1).Spike5);
+    for elecIdx = 1:NumberElec
+        if isempty(Data(1).Spike5{elecIdx}) || isempty(Data(2).Spike5{elecIdx})
+            Data(3).Spike5{elecIdx} = [];
+        else
+            Data(3).Spike5{elecIdx}=[Data(1).Spike5{elecIdx},Data(2).Spike5{elecIdx}];
+        end
+    end
+end
+
+% check if both have waveform
+if savewave(1) && savewave(2)
+    % Merge Waveform by horizontally CAT in each electrode
+    NumberElec = numel(Data(1).Waveform);
+    for elecIdx = 1:NumberElec
+        if isempty(Data(1).Waveform{elecIdx}) || isempty(Data(2).Waveform{elecIdx})
+            Data(3).Waveform{elecIdx} = [];
+        else
+            Data(3).Waveform{elecIdx} = [Data(1).Waveform{elecIdx}, Data(2).Waveform{elecIdx}];
+        end
+    end
+end
+
+% check if both have waveform 5
+if savewave5(1) && savewave5(2)
+    % Merge Waveform 5 by horizontally CAT in each electrode
+    NumberElec = numel(Data(1).Waveform5);
+    for elecIdx = 1:NumberElec
+        if isempty(Data(1).Waveform5{elecIdx}) || isempty(Data(2).Waveform5{elecIdx})
+            Data(3).Waveform5{elecIdx} = [];
+        else
+            Data(3).Waveform5{elecIdx} = [Data(1).Waveform5{elecIdx},Data(2).Waveform5{elecIdx}];
+        end
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Verify Data
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Save merged data into a new location
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if exist(savepath,'dir') == 7
+    rmdir(savepath,'s');
+end
+mkdir(savepath)
+% Save ArrayMap
+matpath = [savepath '/' 'ArrayMap.mat'];
+ArrayMap = Data(3).ArrayMap;
+save(matpath,'ArrayMap');
+% Save NEV elec
+matpath = [savepath '/' 'elec.mat'];
+elec = Data(3).elec;
+save(matpath,'elec');
+% Save Expmark
+matpath = [savepath '/' 'Expmark.mat'];
+Expmark = Data(3).Expmark;
+save(matpath,'Expmark');
+% Save EyeData
+matpath = [savepath '/' 'EyeData.mat'];
+EyeData = Data(3).EyeData;
+EyeTrace = Data(3).EyeTrace;
+save(matpath,'EyeData', 'EyeTrace');
+% Save LogInfo
+matpath = [savepath '/' 'LogInfo.mat'];
+LogInfo = Data(3).LogInfo;
+save(matpath,'LogInfo');
+% Save mbminfo
+matpath = [savepath '/' 'mbminfo.mat'];
+MBMFieldNames = Data(3).MBMFieldNames;
+MbmInfo = Data(3).MbmInfo;
+MbmNumtrials = Data(3).MbmNumtrials;
+sMbmInfo = Data(3).sMbmInfo;
+save(matpath,'MBMFieldNames', 'MbmInfo', 'MbmNumtrials', 'sMbmInfo');
+% Save nevbasic
+matpath = [savepath '/' 'nevbasic.mat'];
+NevBasic = Data(3).NevBasic;
+save(matpath,'NevBasic');
+% Save nevextended
+matpath = [savepath '/' 'nevextend.mat'];
+NevExtended = Data(3).NevExtended;
+save(matpath,'NevExtended');
+% Save RFtuningParam
+matpath = [savepath '/' 'RFtuningParam.mat'];
+RFtuningParam = Data(3).RFtuningParam;
+save(matpath,'RFtuningParam');
+% Save Spike
+matpath = [savepath '/' 'Spike.mat'];
+Spike = Data(3).Spike;
+save(matpath,'Spike');
+% If with ns5
+if withns5(1) && withns5(2)
+    matpath = [savepath '/' 'Elec5.mat'];
+    elec = Data(3).Elec5;
+    save(matpath,'elec');
+    matpath = [savepath '/' 'Spike5.mat'];
+    Spike = Data(3).Spike5;
+    save(matpath,'Spike')
+    if savewave5(1) && savewave5(2)
+        matpath = [savepath '/' 'Waveform5.mat'];
+        Waveform = Data(3).Waveform5;
+        save(matpath,'Waveform');
+    end
+end
+% if save wave
+if savewave(1) && savewave(2)
+    matpath = [savepath '/' 'Waveform.mat'];
+    Waveform = Data(3).Waveform;
+    save(matpath,'Waveform');
+end

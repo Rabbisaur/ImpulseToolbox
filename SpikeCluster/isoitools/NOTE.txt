@@ -1,0 +1,7 @@
+Install Cygwin_x64 on Windows
+Add cygwin/bin/ into system path -> computer->property->Advance->Enviorment
+cygwin -> make
+cygwin -> make clean
+wave2f wavex.txt wavefeat.txt
+isoi wavefeat.txt wave_IsoI.txt
+isorat wavefeat.txt wave_IsoDLRat.txt
