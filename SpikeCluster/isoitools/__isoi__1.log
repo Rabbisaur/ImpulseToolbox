@@ -1,0 +1,37 @@
+[06/Dec/2013:22:35:09]: Imported 2036 spikes
+[06/Dec/2013:22:35:09]: m_bNormFloatV = true
+[06/Dec/2013:22:35:09]: Finding best 8 dimensions for each of the 4 clusters.
+[06/Dec/2013:22:35:09]: Starting CalcClustInfo bFast=false NumElems=2036 NumDims=8
+[06/Dec/2013:22:35:09]: sym. kldiv=9.1328
+[06/Dec/2013:22:35:09]: sym. kldiv=11.0831
+[06/Dec/2013:22:35:09]: sym. kldiv=7.4287
+[06/Dec/2013:22:35:09]: sym. kldiv=6.7485
+[06/Dec/2013:22:35:09]: Calculating inter-cluster KLDiv
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(1,2)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(1,3)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(1,4)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(2,1)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(2,3)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(2,4)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(3,1)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(3,2)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(3,4)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(4,1)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(4,2)
+[06/Dec/2013:22:35:09]: Calculating IsoI_NN(4,3)
+[06/Dec/2013:22:35:09]: Nearest kldiv from clust 1 to 4 is 13.890607
+[06/Dec/2013:22:35:09]: Nearest kldiv from clust 2 to 4 is 14.182789
+[06/Dec/2013:22:35:09]: Nearest kldiv from clust 3 to 4 is 5.550081
+[06/Dec/2013:22:35:09]: Nearest kldiv from clust 4 to 3 is 5.550081
+[06/Dec/2013:22:35:09]: 
+inter clust kldiv table
+0.000000	14.257702	14.035360	13.890607	
+14.257702	0.000000	15.805091	14.182789	
+14.035360	15.805091	0.000000	5.550081	
+13.890605	14.182789	5.550081	0.000000	
+
+[06/Dec/2013:22:35:09]: clust=1 count=160 kldiv_total=23.0234 kldiv_bg=9.1328 kldiv_inter=13.8906 closest_clust=4
+[06/Dec/2013:22:35:09]: clust=2 count=432 kldiv_total=25.2659 kldiv_bg=11.0831 kldiv_inter=14.1828 closest_clust=4
+[06/Dec/2013:22:35:09]: clust=3 count=580 kldiv_total=12.9788 kldiv_bg=7.4287 kldiv_inter=5.5501 closest_clust=4
+[06/Dec/2013:22:35:09]: clust=4 count=710 kldiv_total=12.2986 kldiv_bg=6.7485 kldiv_inter=5.5501 closest_clust=3
+[06/Dec/2013:22:35:09]: Finished CalcClustInfo bFast=0 bDoKLDiv=1 bInter=1 NumElems=2036 NumDims=8 iSQRTCalls=0 bFindBestDims=1 iBestDims=8

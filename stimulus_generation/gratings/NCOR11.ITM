@@ -1,0 +1,38 @@
+ITEM TYPE FILLED CENTERX CENTERY BITPAN WIN_WIDE WIN_TALL HEIGHT WIDTH ANGLE OUTER INNER -R- -G- -B- C A ------FILENAME------ ---PATTERN_FILE----- FLOAT1 FLOAT2 FLOAT3 FLOAT4 INT1 INT2 INT3 INT4 CHAR1 CHAR2
+  -4    1      1    0.00    0.00      0                   1.00   1.00  0.00              126 126 126 x
+  -3    2      0    0.00    0.00      0                                      0.04  0.04  126 126 126 x
+  -2    2      0    0.00    0.00      0                                      0     0       0   0   0 x
+  -1    2      1    0.00    0.00      0                                      0.2   0     220   0   0 x
+   0    1      1    0.00    0.00      0                   1.00   1.00  0.00              126 126 126 x
+   1    8           0.00    0.00      0                                                    0   0   0 n   cart1_30.ctx
+   2    8           0.00    0.00      0                                                    0   0   0 n   cart1_80.ctx
+   3    8           0.00    0.00      0                                                    0   0   0 n   cart2_30.ctx
+   4    8           0.00    0.00      0                                                    0   0   0 n   cart2_80.ctx
+   5    8           0.00    0.00      0                                                    0   0   0 n   cart3_30.ctx
+   6    8           0.00    0.00      0                                                    0   0   0 n   cart3_80.ctx
+   7    8           0.00    0.00      0                                                    0   0   0 n   cart4_30.ctx
+   8    8           0.00    0.00      0                                                    0   0   0 n   cart4_80.ctx
+   9    8           0.00    0.00      0                                                    0   0   0 n   cart5_30.ctx
+  10    8           0.00    0.00      0                                                    0   0   0 n   cart5_80.ctx
+  11    8           0.00    0.00      0                                                    0   0   0 n   cart6_30.ctx
+  12    8           0.00    0.00      0                                                    0   0   0 n   cart6_80.ctx
+  13    8           0.00    0.00      0                                                    0   0   0 n   cart7_30.ctx
+  14    8           0.00    0.00      0                                                    0   0   0 n   cart7_80.ctx
+  15    8           0.00    0.00      0                                                    0   0   0 n   cart8_30.ctx
+  16    8           0.00    0.00      0                                                    0   0   0 n   cart8_80.ctx
+  17    8           0.00    0.00      0                                                    0   0   0 n   hyper1_30.ctx
+  18    8           0.00    0.00      0                                                    0   0   0 n   hyper1_80.ctx
+  19    8           0.00    0.00      0                                                    0   0   0 n   hyper2_30.ctx
+  20    8           0.00    0.00      0                                                    0   0   0 n   hyper2_80.ctx
+  21    8           0.00    0.00      0                                                    0   0   0 n   hyper3_30.ctx
+  22    8           0.00    0.00      0                                                    0   0   0 n   hyper3_80.ctx
+  23    8           0.00    0.00      0                                                    0   0   0 n   hyper4_30.ctx
+  24    8           0.00    0.00      0                                                    0   0   0 n   hyper4_80.ctx
+  25    8           0.00    0.00      0                                                    0   0   0 n   radial0_30.ctx
+  26    8           0.00    0.00      0                                                    0   0   0 n   radial0_80.ctx
+  27    8           0.00    0.00      0                                                    0   0   0 n   spiral0_30.ctx
+  28    8           0.00    0.00      0                                                    0   0   0 n   spiral0_80.ctx
+  29    8           0.00    0.00      0                                                    0   0   0 n   spiral1_30.ctx
+  30    8           0.00    0.00      0                                                    0   0   0 n   spiral1_80.ctx
+  31    8           0.00    0.00      0                                                    0   0   0 n   target0_30.ctx
+  32    8           0.00    0.00      0                                                    0   0   0 n   target0_80.ctx

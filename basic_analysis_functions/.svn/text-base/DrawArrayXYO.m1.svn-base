@@ -1,0 +1,113 @@
+function DrawArrayXYO(path,fitgoodness)
+%
+switch nargin
+    case 1
+        fitgoodness = 0.5;
+    case 2
+        % currently do nothing
+    otherwise
+        error('Use: DrawArrayXYO(path,fitgoodness)')
+end
+
+% check file
+if strcmp(path(end-16:end),'RFtuningParam.mat')
+    RFtuningParamPath = path;
+elseif exist(path,'dir')
+    RFtuningParamPath = [path '/' 'RFtuningParam.mat'];
+end
+if ~exist(RFtuningParamPath,'file')
+    error([RFtuningParamPath ' not exist, load machine data first!'])
+end
+
+load(RFtuningParamPath)
+% select fit goodness greater than specified
+poz = RFtuningParam.xparam(6,:) > fitgoodness & RFtuningParam.yparam(6,:) > fitgoodness & RFtuningParam.oparam(6,:) > fitgoodness;
+
+FWTM = (2*log(10))^0.5;
+% FWTM = 1.96; % 95% area
+EID = RFtuningParam.xparam(1,poz);
+x.co = RFtuningParam.xparam(3,poz);
+x.width = RFtuningParam.xparam(4,poz)*FWTM;
+y.co = RFtuningParam.yparam(3,poz);
+y.width = RFtuningParam.yparam(4,poz)*FWTM;
+ori = RFtuningParam.oparam(3,poz);
+oparam = RFtuningParam.oparam(2:5,poz);
+% determin the quadrants
+xysign(1) = mean(x.co) >= 0;
+xysign(2) = mean(y.co) >= 0;
+xysign(3) = min(x.co - x.width) >= 0;
+xysign(4) = min(y.co - y.width) >= 0;
+xysign(5) = max(x.co + x.width) >= 0;
+xysign(6) = max(y.co + y.width) >= 0;
+
+quadrants = zeros(4,1);
+if xysign(1) == 1 && xysign(2) == 1 || xysign(3) == 1 && xysign(4) == 1 || xysign(5) == 1 && xysign(6) == 1
+    quadrants(1) = 1;
+end
+if xysign(1) == 0 && xysign(2) == 1 || xysign(3) == 0 && xysign(4) == 1 || xysign(5) == 0 && xysign(6) == 1
+    quadrants(2) = 1;
+end
+if xysign(1) == 0 && xysign(2) == 0 || xysign(3) == 0 && xysign(4) == 0 || xysign(5) == 0 && xysign(6) == 0
+    quadrants(3) = 1;
+end
+if xysign(1) == 1 && xysign(2) == 0 || xysign(3) == 1 && xysign(4) == 0 || xysign(5) == 1 && xysign(6) == 0
+    quadrants(4) = 1;
+end
+xlimit.min = 0;
+xlimit.max = 0;
+ylimit.min = 0;
+ylimit.max = 0;
+if quadrants(1) || quadrants(4)
+    %     xlimit.max = 10;
+    xlimit.max = max(x.co + x.width) + 2;
+end
+if quadrants(2) || quadrants(3)
+    %     xlimit.min = -10;
+    xlimit.min = min(x.co - x.width) - 2;
+end
+if quadrants(1) || quadrants(2)
+    %     ylimit.max = 10;
+    ylimit.max = max(y.co + y.width) + 2;
+end
+if quadrants(3) || quadrants(4)
+    %     ylimit.min = -10;
+    ylimit.min = min(y.co - y.width) - 2;
+end
+
+NumElec = numel(EID);
+figure,hold on
+plot([-10,10],[0,0],'black--')
+plot([0,0],[-10,10],'black--')
+xlim([xlimit.min, xlimit.max])
+ylim([ylimit.min, ylimit.max])
+cm = jet(360);
+colormap('jet')
+odata = linspace(-360,360,360);
+g = @(para,xdata) para(1)*exp( -(xdata-para(2)).^2/2/para(3)^2 )+para(4);
+for idx = 1:NumElec
+    elec.xco =  x.co(idx);
+    elec.xwidth = x.width(idx);
+    elec.yco = y.co(idx);
+    elec.ywidth = y.width(idx);
+    elec.ori = ori(idx);
+    elec.oparam = oparam(:,idx);
+    elec.oparam(1) = 1;
+    elec.oparam(4) = 0;
+    oricurve = g(elec.oparam,odata);
+    [oricurvex oricurvey]= pol2cart(linspace(-2*pi,2*pi,360),oricurve.*0.8*elec.xwidth);
+    color=cm(ceil(mod(elec.ori,360)),:);
+    text(elec.xco,elec.yco,num2str(EID(idx)),'FontSize',16,'color','black')
+    plot(oricurvex+elec.xco,oricurvey+elec.yco,'color',color)
+%     [circlex circley] = pol2cart(linspace(-pi,pi,360),0.2*elec.xwidth);
+%     plot(circlex+elec.xco, circley+elec.yco)
+    % left vertical line
+    plot([elec.xco-elec.xwidth, elec.xco-elec.xwidth],[elec.yco-elec.ywidth,elec.yco+elec.ywidth],'black')
+    % right vertical line
+    plot([elec.xco+elec.xwidth elec.xco+elec.xwidth],[elec.yco-elec.ywidth,elec.yco+elec.ywidth],'black')
+    % upper horizontal line
+    plot([elec.xco-elec.xwidth,elec.xco+elec.xwidth],[elec.yco+elec.ywidth elec.yco+elec.ywidth],'black')
+    % lower horizontal line
+    plot([elec.xco-elec.xwidth,elec.xco+elec.xwidth],[elec.yco-elec.ywidth elec.yco-elec.ywidth],'black')
+    % draw ori tuning
+    
+end

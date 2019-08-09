@@ -1,0 +1,140 @@
+function SelctedEID = SelectElec(datapath,mode, Array, EID, args, Blank_Window, Response_Window, mergematrix,ConditionGroupID)
+% Use: EID = SelectElec(datapath, EID, Array, mode, args, Blank_Window, Response_Window, mergematrix,ConditionGroupID)
+% provide a common tool to solve all electrode selection problem
+%
+% datapath: the path to session mat data
+% mode: 1 = by evoked vs spontaneous response
+% Array: A, B or ALL
+% EID: a preselection of EIDs, [] = ALL;
+% args(1) -- ValidOnly
+% args(2) -- merge conditions
+% args(3) -- 0 = Not On rf, 1 = On rf, 2 = both 
+% args(4) -- 0 = incorrect, 1 = correct, 2 = both
+% args(5) --  0 = Load Spike, 1 = Load Spike5
+% Blank_Window: Time window in a trial for spontaneous response
+% Response_Window: Time window in a trial account for evoked response
+% mergematrix: a cell array for merge same conditions with different
+% condition IDs. [] = no merging
+% ConditionGroupID: which ConditionGroupID would be taken into consider in
+% the later analysis. Default is 1; [] = ALL conditions
+%
+% Can select by stim evoked response
+% Can select by RF property, not implemented yet
+% Can select by spatial relationship of the RF to the stim, not implemented
+% yet
+% Can select by cell tuning property and its relationship to the stim, not
+% implemented yet
+
+switch nargin
+    case 2
+        EID = [];
+        Array = 'ALL';
+        args = [1,0,2,2,0];
+        Blank_Window = [0 200];
+        Response_Window = [300 800];
+        mergematrix = [];
+        ConditionGroupID = 1;
+    case 3
+        EID = [];
+        args = [1,0,2,2,0];
+        Blank_Window = [0 200];
+        Response_Window = [300 800];
+        mergematrix = [];
+        ConditionGroupID = 1;
+    case 4
+        args = [1,0,2,2,0];
+        Blank_Window = [0 200];
+        Response_Window = [300 800];
+        mergematrix = [];
+        ConditionGroupID = 1;
+    case 5
+        Blank_Window = [0 200];
+        Response_Window = [300 800];
+        mergematrix = [];
+        if args(5) && isempty(mergematrix)
+            error('You must specify mergematrix when args(5) == 1')
+        end
+        ConditionGroupID = 1;
+    case 7
+        mergematrix = [];
+        if args(5) && isempty(mergematrix)
+            error('You must specify mergematrix when args(5) == 1')
+        end
+        ConditionGroupID = 1;
+    case 8
+        ConditionGroupID = 1;
+    case 9
+        % currently do nothing
+    otherwise
+        error('Use: EID = SelectElec(datapath, EID, Array, mode, args, Blank_Window, Response_Window, mergematrix,ConditionGroupID)')
+end
+
+% configure
+% datapath = '/home/wang/testground/G121219_e12_detection';
+% mode = 1; % 1 = by stim evoked response
+% EID = []; % select from EID, if empty, select from array map
+% Array = 'A'; % can be 'A', 'B', 'ALL'.
+% % Stim_Time = [0 1000]; % really should be find out automatically from log file
+% Blank_Window = [0 200]; % blank time window in millisecond
+% Response_Window = [300 800]; % response time window in millisecond
+% % conditionID = 0; % condition ID used as the stim.
+% args = [1,0,2,2,0];
+% mergematrix = [];
+
+switch mode
+    case 1 % by stim evoked response
+        Blank_Window = round(Blank_Window);
+        Response_Window = round(Response_Window);
+%         Length_Blank_Window = Blank_Window(2)-Blank_Window(1);
+%         Length_Response_Window = Response_Window(2)-Response_Window(1);
+%         BinSize = gcd(Length_Blank_Window,Length_Response_Window);
+        temp_gcdBlank = gcd(Blank_Window(1),Blank_Window(2));
+        temp_gcdResponse = gcd(Response_Window(1),Response_Window(2));
+        BinSize = gcd(temp_gcdBlank,temp_gcdResponse);
+        % Blank_NumPoints = Length_Blank_Window / BinSize;
+        % Response_NumPoints = Length_Response_Window / BinSize;
+        Edges = min([Blank_Window,Response_Window]):BinSize:max([Blank_Window,Response_Window]);
+        BlankIdx(1) = find(Edges == Blank_Window(1));
+        BlankIdx(2) = find(Edges == Blank_Window(2));
+        ResponseIdx(1) = find(Edges == Response_Window(1));
+        ResponseIdx(2) = find(Edges == Response_Window(2));
+        filepath = [datapath '/' 'ArrayMap.mat'];
+        load(filepath);
+        if args(5) == 0
+            filepath = [datapath '/' 'elec.mat'];
+        elseif args(5) == 1
+            filepath = [datapath '/' 'Elec5.mat'];
+        end
+        load(filepath);
+        if isempty(EID)
+            if strcmp(Array,'A')
+                EID = ArrayMap(:,1:6);
+            elseif strcmp(Array, 'B')
+                EID = ArrayMap(:,7:12);
+            elseif strcmp(Array, 'ALL')
+                EID = ArrayMap;
+            else
+                error('Unrecognized Array value, must be ''A'', ''B'' or ''ALL''')
+            end
+            EID = reshape(EID,[],1);
+        end
+        EID = intersect(EID,elec);
+        EID = sort(EID); % sort EID increamentally       
+        CondSpikeTrain = BinSpike(datapath,Edges,EID,args,mergematrix);
+        if isempty(ConditionGroupID)
+            % all conditions are included
+        else
+            CondSpikeTrain = CondSpikeTrain(ConditionGroupID);
+        end
+        for idx = 1:numel(CondSpikeTrain)
+            ProbeResponseSpikeCount = sum(CondSpikeTrain{idx}(:,:,ResponseIdx(1):ResponseIdx(2)),3);
+            BlankResponseSpikeCount = sum(CondSpikeTrain{idx}(:,:,BlankIdx(1):BlankIdx(2)),3);
+            ResponseDifference = ProbeResponseSpikeCount - BlankResponseSpikeCount;
+            TestResult(idx,:) = ttest(ResponseDifference',0,0.01);
+        end 
+        TestResult = sum(TestResult,1);
+        poz = TestResult == numel(CondSpikeTrain);
+        SelctedEID = EID(poz);
+    otherwise
+        error(['Mode ' num2str(mode) ' not recognized/ not implemented yet!'])
+end

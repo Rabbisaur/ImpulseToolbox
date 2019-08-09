@@ -1,4 +1,4 @@
-function TSLloadNS6ElecNoSortingPar(filepath,xEstimation)
+function TSLloadNS6ElecNoSortingPar(filepath,xEstimation,AlignMark)
 % filepath - full or relative path to the ns5 file
 % savewave - 0,1, whether save spike waveform or not, default = 1
 % xEstimation - default -5, auto thresholding with x times estimation
@@ -6,21 +6,10 @@ function TSLloadNS6ElecNoSortingPar(filepath,xEstimation)
 % LoadNs5 will filter 30KHz Nsx files and find zero phase shifted spike
 % time, construct experiment event matrix from nev and save wave form.
 %
-% wrote and revised by Wang Feng @ BNU, tested and with honour.
+% wrote and revised by Wang Feng @ BNU.
 %
 % latest revision date: Oct. 12, 2016, by Wang Feng @ CMU
 %
-
-% verify the validity of input arguments
-switch nargin
-    case 1
-        %         savewave = 1; % spike sorting is very important and mean to be the very next step before any analysis. So if you don't want store spike wave form, state it explicitly.
-        xEstimation = -3.5; % auto thresholding with x times estimation
-    case 2
-        % currently doing nothing
-    otherwise
-        fprintf('failure: LoadNs5 accepts 3 input arguments.\n'); return;
-end
 
 if ispc
     slash = '\';
@@ -33,14 +22,22 @@ tic;
 datachunksize = 100; % seconds
 overlapsize = 1; % seconds
 
+refractionPeriod = 1.5; % ms
+
 % ref_period = 1; %ms
 waveformLength = 64; % how many sample points in a waveform
-waveformAlignpoint = 0.25; % align waveform at which point, round(waveformLength * waveformAlignpoint)
+waveformAlignpoint = 0.33; % align waveform at which point, round(waveformLength * waveformAlignpoint)
 matversion = '-v7.3';
 
 discriminationWindow = [0 0.00027];
 window1 = [-800 -150];
 window2 = [0 300];
+
+processLFP = 0;
+processMUA = 0;
+sorttrial = 0;
+
+
 LFPSampleRate = 2000; %Hz
 MUASampleRate = 1000; %Hz
 LFPTimeBeforeAlign = 0.2; % Sec
@@ -48,7 +45,7 @@ LFPTimeAfterAlign = 1; % Sec
 MUATimeBeforeAlign = 0.2; % Sec
 MUATimeAfterAlign = 1; % Sec
 
-NumberPar = 8; % number of channels for parallel processing.
+NumberPar = 4; % number of channels for parallel processing.
 %% construct experiment event matrix from nev file
 % check the validity of the nev & mbm files specified
 Ns6Path = [filepath(1: end-3) 'ns6'];
@@ -208,7 +205,7 @@ end
 ChunkSize = datachunksize * SampleRate;
 
 overlapsize = overlapsize * SampleRate;
-
+NsxBasic.NumElec = double(NsxBasic.NumElec);
 NumElecgroups = ceil(NsxBasic.NumElec / NumberPar);
 elecgroupingmember = floor(NsxBasic.NumElec / NumberPar);
 elecgroupingremainder = mod(NsxBasic.NumElec, NumberPar);
@@ -252,7 +249,7 @@ for thisElecGroup = 1:NumElecgroups
         
         DataChunk = DataChunk(:,GroupElectrodeNumber{thisElecGroup});
         
-%         disp('Filtering the data')
+        %         disp('Filtering the data')
         % remove line noise
         DataChunk = filtfilt(d,DataChunk);
         % lowpass to get the LFP
@@ -322,13 +319,13 @@ for thisElecGroup = 1:NumElecgroups
         
         
         % Estimate the threshold
-%         disp('Estimating threshold')
+        %         disp('Estimating threshold')
         C_Threshold = xEstimation * median(abs(DataChunk)/0.6745,1); % 0.6745 is from experience discribed in iterature
         threshold(thisChunk,:) = C_Threshold;
         
         
         % spike detection
-%         disp('Detecting spikes')
+        %         disp('Detecting spikes')
         DataChunkLength = size(DataChunk,1);
         C_poz = DataChunk - repmat(C_Threshold,DataChunkLength,1);
         
@@ -341,7 +338,7 @@ for thisElecGroup = 1:NumElecgroups
         C_poz_diff = C_poz - C_poz_shifted;
         
         % get spikes and waveforms
-%         disp('Preparing waveforms')
+        %         disp('Preparing waveforms')
         
         for thisElec = 1:NumElecInGroup
             % Spikestamps
@@ -379,6 +376,26 @@ for thisElecGroup = 1:NumElecgroups
         error('File not fully read!')
     end
     
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % remove Spikes with short ISI
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    for thisElec = 1:NumElecInGroup
+        NumSpikes = numel(RawSpikeStamps{thisElec});
+        CurrIdx = 1;
+        GoodIdx = false(NumSpikes,1);
+        GoodIdx(CurrIdx) = 1;
+        for thisSpike = 2:NumSpikes
+            ISI = RawSpikeStamps{thisElec}(thisSpike) - RawSpikeStamps{thisElec}(CurrIdx);
+            if ISI <= refractionPeriod * SampleRate / 1000
+                continue
+            else
+                CurrIdx = thisSpike;
+                GoodIdx(CurrIdx) = true;
+            end
+        end
+        RawSpikeStamps{thisElec} = RawSpikeStamps{thisElec}(GoodIdx);
+        RawWaveform{thisElec} = RawWaveform{thisElec}(GoodIdx,:);
+    end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Split spikes into trials
@@ -388,37 +405,41 @@ for thisElecGroup = 1:NumElecgroups
     
     for thisElec = 1:NumElecInGroup
         EID = GroupElectrodesOrder{thisElecGroup}(thisElec);
-        SpikeSTAligned = cell(NumTrials,1);
-        SpikeTimeAligned = cell(NumTrials,1);
         
-        cumidx = zeros(size(RawSpikeStamps{thisElec}));
-        NumSpikes = zeros(NumTrials,1);
-        for thisTrial = 1:NumTrials
-            TrialStart = ExpmarkST(1,thisTrial);
-            TrialEnd = ExpmarkST(4,thisTrial);
-            TrialAlign = ExpmarkST(6,thisTrial); % aligned to the stimulus onset
-            LFPStart = round((TrialAlign - LFPTimeBeforeAlign * SampleRate) / (SampleRate/LFPSampleRate));
-            LFPEnd = round((TrialAlign + LFPTimeAfterAlign * SampleRate)/(SampleRate/LFPSampleRate));
-            LFP(:,thisTrial) = rawLFP{thisElec}(LFPStart:LFPEnd);
-            MUAStart = round((TrialAlign - MUATimeBeforeAlign * SampleRate) / (SampleRate/MUASampleRate));
-            MUAEnd = round((TrialAlign + MUATimeAfterAlign * SampleRate)/(SampleRate/MUASampleRate));
-            MUA(:,thisTrial) = rawMUA{thisElec}(MUAStart:MUAEnd);
-            idx = RawSpikeStamps{thisElec} >=  TrialStart & RawSpikeStamps{thisElec} < TrialEnd;
-            TrialSpikes = RawSpikeStamps{thisElec}(idx);
-            TrialSpikesAligned = TrialSpikes - TrialAlign;
-            if size(TrialSpikesAligned,1) < size(TrialSpikesAligned,2)
-                TrialSpikesAligned = TrialSpikesAligned';
+        if sorttrial
+            SpikeSTAligned = cell(NumTrials,1);
+            SpikeTimeAligned = cell(NumTrials,1);
+            
+            cumidx = zeros(size(RawSpikeStamps{thisElec}));
+            NumSpikes = zeros(NumTrials,1);
+            for thisTrial = 1:NumTrials
+                TrialStart = ExpmarkST(1,thisTrial);
+                TrialEnd = ExpmarkST(4,thisTrial);
+                TrialAlign = ExpmarkST(AlignMark,thisTrial); % aligned to the stimulus onset
+                LFPStart = round((TrialAlign - LFPTimeBeforeAlign * SampleRate) / (SampleRate/LFPSampleRate));
+                LFPEnd = round((TrialAlign + LFPTimeAfterAlign * SampleRate)/(SampleRate/LFPSampleRate));
+                LFP(:,thisTrial) = rawLFP{thisElec}(LFPStart:LFPEnd);
+                MUAStart = round((TrialAlign - MUATimeBeforeAlign * SampleRate) / (SampleRate/MUASampleRate));
+                MUAEnd = round((TrialAlign + MUATimeAfterAlign * SampleRate)/(SampleRate/MUASampleRate));
+                MUA(:,thisTrial) = rawMUA{thisElec}(MUAStart:MUAEnd);
+                idx = RawSpikeStamps{thisElec} >=  TrialStart & RawSpikeStamps{thisElec} < TrialEnd;
+                TrialSpikes = RawSpikeStamps{thisElec}(idx);
+                TrialSpikesAligned = TrialSpikes - TrialAlign;
+                if size(TrialSpikesAligned,1) < size(TrialSpikesAligned,2)
+                    TrialSpikesAligned = TrialSpikesAligned';
+                end
+                if thisTrial > 108
+                    a = 1;
+                end
+                SpikeSTAligned{thisTrial} = TrialSpikesAligned;
+                SpikeTimeAligned{thisTrial} = TrialSpikesAligned/SampleRate;
+                NumSpikes(thisTrial) = numel(TrialSpikes);
+                cumidx = cumidx | idx;
             end
-            if thisTrial > 108
-                a = 1;
-            end
-            SpikeSTAligned{thisTrial} = TrialSpikesAligned;
-            SpikeTimeAligned{thisTrial} = TrialSpikesAligned/SampleRate;
-            NumSpikes(thisTrial) = numel(TrialSpikes);
-            cumidx = cumidx | idx;
+            RawWaveform{thisElec} = RawWaveform{thisElec}(cumidx,:); % exclude spikes that not in a trial
+            RawSpikeStamps{thisElec} = RawSpikeStamps{thisElec}(cumidx,:);
+            
         end
-        RawWaveform{thisElec} = RawWaveform{thisElec}(cumidx,:); % exclude spikes that not in a trial
-        RawSpikeStamps{thisElec} = RawSpikeStamps{thisElec}(cumidx,:);
         
         idx = find(filepath == '.', 1, 'last');
         savebasedir = filepath(1:(idx-1));
@@ -427,10 +448,13 @@ for thisElecGroup = 1:NumElecgroups
             rmdir(savedir,'s');
         end
         mkdir(savedir);
-        save([savedir,slash, 'LFP6.mat'],'LFP');
-        save([savedir,slash, 'MUA6.mat'],'MUA');
-        save([savedir,slash, 'spikeST6.mat'],'SpikeSTAligned');
-        save([savedir,slash, 'SpikeTime6.mat'],'SpikeTimeAligned');
+        
+        if sorttrial
+            save([savedir,slash, 'LFP6.mat'],'LFP');
+            save([savedir,slash, 'MUA6.mat'],'MUA');
+            save([savedir,slash, 'spikeST6.mat'],'SpikeSTAligned');
+            save([savedir,slash, 'SpikeTime6.mat'],'SpikeTimeAligned');
+        end
         elecRawWaveform = RawWaveform{thisElec};
         save([savedir,slash, 'RawWaveform6.mat'],'elecRawWaveform');
         elecThreshold = threshold(:,thisElec);

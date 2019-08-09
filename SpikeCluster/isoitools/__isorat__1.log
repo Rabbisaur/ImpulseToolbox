@@ -1,0 +1,32 @@
+[06/Dec/2013:22:34:57]: Imported 2036 spikes
+[06/Dec/2013:22:34:57]: m_bNormFloatV = true
+[06/Dec/2013:22:34:57]: Computing isolation distance for clusters
+[06/Dec/2013:22:34:57]: Computing isolation distance for cluster 1
+clust 1 sz=160
+[06/Dec/2013:22:34:57]: Isolation dist of clust 1 is 265.271606
+[06/Dec/2013:22:34:57]: Computing isolation distance for cluster 2
+clust 2 sz=432
+[06/Dec/2013:22:34:57]: Isolation dist of clust 2 is 173.156250
+[06/Dec/2013:22:34:57]: Computing isolation distance for cluster 3
+clust 3 sz=580
+[06/Dec/2013:22:34:57]: Isolation dist of clust 3 is 42.133976
+[06/Dec/2013:22:34:57]: Computing isolation distance for cluster 4
+clust 4 sz=710
+[06/Dec/2013:22:34:57]: Isolation dist of clust 4 is 61.446556
+[06/Dec/2013:22:34:57]: Computing L-Ratio for clusters
+[06/Dec/2013:22:34:57]: Computing L-Ratio for cluster 1
+clust 1 sz=160
+[06/Dec/2013:22:34:57]: Clust1 : L = 1.87813 , L-Ratio = 0.0117383
+[06/Dec/2013:22:34:57]: L-Ratio of clust 1 is 0.011738
+[06/Dec/2013:22:34:57]: Computing L-Ratio for cluster 2
+clust 2 sz=432
+[06/Dec/2013:22:34:57]: Clust2 : L = 0.342659 , L-Ratio = 0.000793192
+[06/Dec/2013:22:34:57]: L-Ratio of clust 2 is 0.000793
+[06/Dec/2013:22:34:57]: Computing L-Ratio for cluster 3
+clust 3 sz=580
+[06/Dec/2013:22:34:57]: Clust3 : L = 22.3265 , L-Ratio = 0.0384939
+[06/Dec/2013:22:34:57]: L-Ratio of clust 3 is 0.038494
+[06/Dec/2013:22:34:57]: Computing L-Ratio for cluster 4
+clust 4 sz=710
+[06/Dec/2013:22:34:57]: Clust4 : L = 43.3752 , L-Ratio = 0.0610918
+[06/Dec/2013:22:34:57]: L-Ratio of clust 4 is 0.061092

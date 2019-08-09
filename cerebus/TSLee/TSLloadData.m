@@ -20,7 +20,7 @@ switch nargin
         withpause = 1;
         threshold = -3;
     case 5
-        threhold = -3;
+        threshold = -3;
 end
 
 
@@ -60,9 +60,9 @@ for thisFile = 1:NumFiles
             rmdir(destpath,'s');
         end
         if withpause
-            TSLloadNS6ElecNoSortingParPause2(NS6path(thisFile).name,-3);
+            TSLloadNS6ElecNoSortingParPause2(NS6path(thisFile).name,threshold);
         else
-            TSLloadNS6ElecNoSortingPar(NS6path(thisFile).name,-3);
+            TSLloadNS6ElecNoSortingPar(NS6path(thisFile).name,threshold);
         end
         cd(matpath);
         if ispc
@@ -75,18 +75,22 @@ for thisFile = 1:NumFiles
     end
     if spikesortingflag
         matfilepath = [matpath,NS6path(thisFile).name(idx2:idx-1)];
-        electrodespath = [matfilepath,'/electrodes.mat'];
+        electrodespath = [matfilepath,slash,'electrodes.mat'];
         load(electrodespath)
         electrodes(electrodes==129) = [];
         numElec = numel(electrodes);
         for thisElec = 1:numElec
             EID = electrodes(thisElec);
-            elecPath = [matfilepath,'/elec',num2str(EID)];
-            elecUnitpath = [elecPath,'/unit.mat'];
-            if exist(elecUnitpath,'file')
-                continue
+            elecPath = [matfilepath,slash,'elec',num2str(EID)];
+            if exist(elecPath,'dir') == 7
+                elecUnitpath = [elecPath,slash,'unit.mat'];
+                if exist(elecUnitpath,'file')
+                    continue
+                else
+                    SpikeSortingMGmethod(elecPath);
+                end
             else
-                SpikeSortingMGmethod(elecPath);
+                continue
             end
         end
     end
