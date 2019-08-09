@@ -1,0 +1,81 @@
+function [CondSpikeTrain] = BinSpike(path,Edge,EID,args,mergematrix)
+% args(1) -- ValidOnly
+% args(2) -- merge conditions
+% args(3) -- 0 = Not On rf, 1 = On rf, 2 = both 
+% args(4) -- 0 = incorrect, 1 = correct, 2 = both
+% args(5) --  0 = Load Spike, 1 = Load Spike5
+switch nargin
+    case 3
+        args = [1,0,2,2,0];
+        mergematrix = [];
+    case 4
+        if args(2)
+            error('You must specify mergematrix when args(3) = 1')
+        end
+    case 5
+        % do nothing
+    otherwise
+        error('Use: [CondSpikeTrain] = BinSpike(path,Edge,EID,args,mergematrix)')
+end
+EID = sort(EID); % sort EID into a incremental order
+elecPath = [path '/elec.mat'];
+if exist(elecPath,'file')
+    load(elecPath)
+else
+    error([elecPath ' not exist!'])
+end
+if args(5)
+    SpliePath = [path '/Spike5.mat'];
+else
+    SpliePath = [path '/Spike.mat'];
+end
+if exist(SpliePath,'file')
+    load(SpliePath)
+else
+    error([SpliePath ' not exist!'])
+end
+%%%%%%%%%%%%%%%%%%%%%
+% spike train param %
+%%%%%%%%%%%%%%%%%%%%%
+SamplingRate = 30;
+SEdge = Edge * SamplingRate;
+NumPoints = numel(Edge);
+% check EID validity
+[ElecInterSection] = intersect(EID,elec);
+AlianEID = setdiff(EID,ElecInterSection);
+if ~isempty(AlianEID)
+    error(['EID = ' num2str(AlianEID) ' is(are) not valid in the array!'])
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Split trials according to condition ID %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if args(2) == 0 || isempty(mergematrix)
+    SplitIndex = SplitTrials(path,args(1:4));
+elseif args(2) == 1 && ~isempty(mergematrix)
+    SplitIndex = SplitTrials(path,args(1:4),mergematrix);
+else
+    error('args == 1 and mergematrix is empty!')
+end
+NumSplits = size(SplitIndex,1);
+NumTrials = size(SplitIndex,2);
+%%%%%%%%%%%%%%%%%%%
+% get spike train %
+%%%%%%%%%%%%%%%%%%%
+NumElec = numel(ElecInterSection);
+SpikeTime = Spike(EID);
+SpikeTrain = zeros(NumElec,NumTrials,NumPoints);
+for Idx = 1:NumElec
+    for TrialIdx = 1:NumTrials
+        if ~isempty(SpikeTime{Idx}{TrialIdx})
+            SpikeTrain(Idx,TrialIdx,:) = histc(SpikeTime{Idx}{TrialIdx},SEdge);
+        else
+            SpikeTrain(Idx,TrialIdx,:) = zeros(size(SEdge));
+        end
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% split trials by SplitIndex matrix %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for Idx = 1:NumSplits
+    CondSpikeTrain{Idx} = SpikeTrain(:,SplitIndex(Idx,:),:);
+end

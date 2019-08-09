@@ -1,0 +1,122 @@
+function [Psth Psthci CondSpikeTrain] = GetPsth(path,Edge,EID,args,mergematrix,N2G)
+% args(1) -- ValidOnly
+% args(2) -- merge conditions
+% args(3) -- 0 = Not On rf, 1 = On rf, 2 = both
+% args(4) -- 0 = incorrect, 1 = correct, 2 = both
+% args(5) --  0 = Load Spike, 1 = Load Spike5
+% args(6) -- 0 = No Normalization, 1 = With Normalization
+% Edge: used in binspike
+switch nargin
+    case 3
+        args = [1,0,2,2,0,0];
+        mergematrix = [];
+    case 4
+        if numel(args) ~= 6
+            error('Size of args = 6')
+        end
+        if args(2)
+            error('You must specify mergematrix when args(3) = 1')
+        end
+        if args(6)
+            error('You must specify normalize to which condition group.')
+        end
+    case 5
+        if numel(args) ~= 6
+            error('Size of args = 6')
+        end
+        if args(6)
+            error('You must specify normalize to which condition group.')
+        end
+    case 6
+        if numel(args) ~= 6
+            error('Size of args = 6')
+        end
+    otherwise
+        error('Use: [Psth Psthci] = GetPsth(path,Edge,EID,mergematrix,N2G)')
+end
+% % % elecPath = [path '/elec.mat'];
+% % % if exist(elecPath,'file')
+% % %     load(elecPath)
+% % % else
+% % %     error([elecPath ' not exist!'])
+% % % end
+% % % if args(4)
+% % %     SpliePath = [path '/Spike5.mat'];
+% % % else
+% % %     SpliePath = [path '/Spike.mat'];
+% % % end
+% % % if exist(SpliePath,'file')
+% % %     load(SpliePath)
+% % % else
+% % %     error([SpliePath ' not exist!'])
+% % % end
+%%%%%%%%%%%%%%%%%%%%%
+% spike train param %
+%%%%%%%%%%%%%%%%%%%%%
+NumBoot = 2000;
+% % % SamplingRate = 30;
+% % % % Edge = Tstart:BinSize:Tend;
+% % % SEdge = Edge * SamplingRate;
+% % % NumPoints = numel(Edge);
+% % % % check EID validity
+% % % [ElecInterSection,~,EIDindex] = intersect(EID,elec);
+% % % AlianEID = setdiff(EID,ElecInterSection);
+% % % if ~isempty(AlianEID)
+% % %     error(['EID = ' num2str(AlianEID) ' is(are) not valid in the array!'])
+% % % end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Split trials according to condition ID %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if isempty(mergematrix)
+    SplitIndex = SplitTrials(path,args(1:4));
+else
+    SplitIndex = SplitTrials(path,args(1:4),mergematrix);
+end
+NumSplits = size(SplitIndex,1);
+% % % NumTrials = size(SplitIndex,2);
+%%%%%%%%%%%%%%%%%%%
+% get spike train %
+%%%%%%%%%%%%%%%%%%%
+% % % NumElec = numel(ElecInterSection);
+% % % SpikeTime = Spike(EIDindex);
+% % % SpikeTrain = zeros(NumElec,NumTrials,NumPoints);
+% % % for Idx = 1:NumElec
+% % %     for TrialIdx = 1:NumTrials
+% % %         if ~isempty(SpikeTime{Idx}{TrialIdx})
+% % %             SpikeTrain(Idx,TrialIdx,:) = histc(SpikeTime{Idx}{TrialIdx},SEdge);
+% % %         else
+% % %             SpikeTrain(Idx,TrialIdx,:) = zeros(size(SEdge));
+% % %         end
+% % %     end
+% % % end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% split trials by SplitIndex matrix %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% % % for Idx = 1:NumSplits
+% % %     CondSpikeTrain{Idx} = SpikeTrain(:,SplitIndex(Idx,:),:);
+% % % end
+[CondSpikeTrain] = BinSpike(path,Edge,EID,args,mergematrix);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Normalization
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if args(6)
+    % Normalize by electrode
+    Idx = N2G;
+    ElecSpikeTrain = squeeze(mean(CondSpikeTrain{Idx},2));
+    [temp_MaxVal,temp_MaxIdx] = max(ElecSpikeTrain,[],2);
+    for Idx = 1:NumSplits
+        for ElecIdx = 1:numel(temp_MaxVal)
+            CondSpikeTrain{Idx}(ElecIdx,:,:) = CondSpikeTrain{Idx}(ElecIdx,:,:)/temp_MaxVal(ElecIdx);
+        end
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%
+% calculate Psth, ci %
+%%%%%%%%%%%%%%%%%%%%%%
+for Idx = 1:NumSplits
+    % average over electrode
+    SpikeTrain = squeeze(mean(CondSpikeTrain{Idx},1));
+    MoF = @(x)(mean(x,1));
+    Psthci{Idx} = bootci(NumBoot,MoF,SpikeTrain);
+    Psth{Idx} = mean(SpikeTrain);
+end

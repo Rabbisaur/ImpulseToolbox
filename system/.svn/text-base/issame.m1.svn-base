@@ -1,0 +1,73 @@
+function [result difference] = issame(A,B)
+%
+%
+
+classA = class(A);
+classB = class(B);
+if strcmp(classA,classB) % if A and B is of different classes, then return 0
+    switch classA
+        case 'struct' % if A and B is structure, first compare the field names, if the same, convert to cell type for further comparision
+            fieldsA = fieldnames(A);
+            fieldsB = fieldnames(B);
+            NumFieldsA = numel(fieldsA);
+            NumFieldsB = numel(fieldsB);
+            % check field names
+            if NumFieldsA == NumFieldsB
+                [result,difference] = cellissame(fieldsA,fieldsB);
+                if result
+                else 
+                    return
+                end
+                
+            else % number of field does not match
+                difference = 'Number of field in A and B are not equal.';
+                result = 0;
+                return
+            end
+            % if field names all match, convert structure to cell and do a
+            % cellissame check
+            cellA = struct2cell(A);
+            cellB = struct2cell(B);
+            result = cellissame(cellA,cellB);
+        case 'cell'
+            [result,difference] = cellissame(A,B);
+            return
+        otherwise
+            result = same(A,B);
+            if result
+                difference = 'None';
+            else
+                difference = 'using matlab built in function same.';
+            end
+            return
+    end
+else % class is different
+    difference = ['A and B are of different class, where A is ' classA ' but B is ' classB];
+    result = 0;
+    return
+end
+end
+
+function [result, difference] = cellissame(A,B)
+    sizeA = size(A);
+    sizeB = size(B);
+    % check size
+    if same(sizeA,sizeB)
+        % element wise check
+        for i = 1:numel(A)
+            if ~issame(A{i},B{i})
+                difference = ['Element in A does not match with element in B.'];
+                result = 0;
+                return
+            end
+        end
+        % if passed element wise check
+        difference = 'None';
+        result = 1;
+        return
+    else % sizeA does not equal sizeB
+        difference = 'Size of A does not match with size of B.';
+        result = 0;
+        return
+    end
+end

@@ -1,0 +1,75 @@
+% function MbmPurgeExtratrials(path)
+path = '/home/wang/workspace/MG/150602/G150602_cueing_e84_007';
+
+% TdiffThres = 0.5;
+
+if ispc
+    slash = '\';
+else
+    slash = '/';
+end
+
+MbmPath = [path, slash, 'mbminfo.mat'];
+ExpmarkPath = [path, slash, 'Expmark.mat'];
+
+% check file
+if exist(MbmPath,'file') ~= 2
+    error([MbmPath, ' does not exists!'])
+end
+if exist(ExpmarkPath,'file') ~=2
+    error([ExpmarkPath, ' does not exists!'])
+end
+
+% load data
+load(MbmPath)
+load(ExpmarkPath)
+NevNumtrials = size(Expmark,2);
+
+MbmValidIdx = sMbmInfo.respCode == 1 | sMbmInfo.respCode == 2;
+NevValidIdx = Expmark(3,:) == 0 & Expmark(5,:) ~= 0;
+
+Purged.MbmInfo = MbmInfo(:,MbmValidIdx);
+Purged.Expmark = Expmark(:,NevValidIdx);
+
+
+if size(Purged.MbmInfo,2) == size(Purged.Expmark,2)
+    
+else
+%     Purged.MbmInfo = MbmInfo;
+    MbmFieldNames = fieldnames(sMbmInfo);
+    disp(['There are ' num2str(NevNumtrials) ' in Nev file, but...'])
+    disp(['there are ' num2str(MbmNumtrials) ' in Mbm file.'])
+    MbmIdx = 1;
+    NevIdx = 1;
+    while MbmIdx <= size(Purged.MbmInfo,2)
+%         MbmTrialT = round(sMbmInfo.respT(MbmIdx) - sMbmInfo.preT(MbmIdx))/1000;
+%         NevTrialT = round(double(Expmark(4,NevIdx) - Expmark(1,NevIdx))/30)/1000;
+%         MbmTriggerT = double(sMbmInfo.trigT(MbmIdx))/1000;
+%         NevTriggerT = double(Expmark(5,NevIdx)-Expmark(1,NevIdx))/30000;
+%         Trigger1diff = abs((MbmTrialT - MbmTriggerT) - (NevTrialT - NevTriggerT));
+        disp([num2str(sMbmInfo.stimID(MbmIdx)) '; ' num2str(Expmark(2,NevIdx))])
+        disp([num2str(MbmIdx) '; ' num2str(NevIdx)])
+        
+        if Purged.MbmInfo(2,MbmIdx) == Purged.Expmark(2,NevIdx) % &&  Trigger1diff / (NevTrialT - NevTriggerT) < TdiffThres % (MbmTrialT - NevTrialT)/NevTrialT < TdiffThres % check if stim ID is the same
+            MbmIdx = MbmIdx +1;
+            NevIdx = NevIdx +1;
+        else
+            Purged.MbmInfo(:,MbmIdx) = nan;
+            MbmIdx = MbmIdx +1;
+        end
+        disp(Purged.MbmInfo(2,MbmIdx-1))
+
+        
+    end
+    Idx = ~isnan(Purged.MbmInfo(1,:));
+    MbmInfo = MbmInfo(:,Idx);
+    MbmNumtrials = sum(Idx);
+    NumFields = size(MbmInfo,1);
+    for thisfield = 1:NumFields
+        cMbmInfo{thisfield} = MbmInfo(thisfield,:);
+    end
+    sMbmInfo = cell2struct(cMbmInfo',MbmFieldNames);
+end
+
+savepath = [path, slash, 'purgedMbmInfo.mat'];
+save(savepath, 'MBMFieldNames', 'MbmInfo', 'MbmNumtrials', 'sMbmInfo');

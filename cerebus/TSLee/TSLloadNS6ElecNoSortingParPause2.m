@@ -40,7 +40,7 @@ overlapsize = 1; % seconds
 
 % ref_period = 1; %ms
 waveformLength = 64; % how many sample points in a waveform
-waveformAlignpoint = 0.25; % align waveform at which point, round(waveformLength * waveformAlignpoint)
+waveformAlignpoint = 0.33; % align waveform at which point, round(waveformLength * waveformAlignpoint)
 matversion = '-v7.3';
 
 discriminationWindow = [0 0.00027];
@@ -193,8 +193,14 @@ end
 ValidityIdx = RawExpmark(3,:) > 0;
 
 ValidTrial.NumValidTrials = sum(ValidityIdx);
-if ValidTrial.NumValidTrials ~= size(ExpmarkTime,2);
+if ValidTrial.NumValidTrials ~= size(ExpmarkTime,2)
     error('Number of valid trials mismatch!');
+end
+
+% temporary solotion for Summer's data, don't know why, need further
+% investigation.
+if numel(Trial.position) ~= numel(ValidityIdx)
+    ValidityIdx(1) = [];
 end
 ValidTrial.position = Trial.position(ValidityIdx);
 ValidTrial.Timestamp = Trial.Timestamp(ValidityIdx);
@@ -319,11 +325,11 @@ for thisTrial = 1:ValidTrial.NumValidTrials
     end
     Timestamp = fread(NsxID,1,'uint32=>double');
     
-    if ValidTrial.Timestamp(thisTrial) ~= Timestamp;
+    if ValidTrial.Timestamp(thisTrial) ~= Timestamp
         error('Timestamp mismatch!')
     end
     NumDP = fread(NsxID,1,'uint32=>double');
-    if ValidTrial.NumDP(thisTrial) ~= NumDP;
+    if ValidTrial.NumDP(thisTrial) ~= NumDP
         error('NumDP mismatch!')
     end
     
@@ -379,11 +385,11 @@ for thisElec = 1:NumValidElec
         end
         Timestamp = fread(elecfp(thisElec),1,'uint32=>double');
         
-        if ValidTrial.tmptimestamp(thisTrial) ~= Timestamp;
+        if ValidTrial.tmptimestamp(thisTrial) ~= Timestamp
             error('Timestamp mismatch!')
         end
         NumDP = fread(elecfp(thisElec),1,'uint32=>double');
-        if ValidTrial.tmpnumdp(thisTrial) ~= NumDP;
+        if ValidTrial.tmpnumdp(thisTrial) ~= NumDP
             error('NumDP mismatch!')
         end
         ElecData(:,thisTrial) = fread(elecfp(thisElec),NumDP,'int16=>double')';

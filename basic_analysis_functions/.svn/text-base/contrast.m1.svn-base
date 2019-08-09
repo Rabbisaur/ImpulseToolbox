@@ -1,0 +1,31 @@
+% for i = 1: ceil(rand*10)
+%     b = a(randperm(numel(a)))
+% end
+% for i = 1: numel(b)
+%     x = xparam{1,4}(xparam{1,1}==b(i));
+%     y = yparam{1,4}(xparam{1,1}==b(i));
+%     o = oparam{1,4}(xparam{1,1}==b(i));
+%     disp([b(i) x y o]);
+%     c(i,1) = x;
+%     c(i,2) = y;
+%     c(i,3) = o;
+% end
+% center = mean(c,1);
+
+%%
+% LGC = [67.350;67.350;68.000;68.000;69.230;69.230;71.430;71.430;75.000;75.000;80.000;80.000;];
+% DGC = [65.960;65.960;65.220;65.220;63.640;63.640;60.000;60.000;50.000;50.000;0.000;0.000;];
+BGL = 0.1;
+% GC = ((1+LGC)*BGL/(1-LGC) - (1+DGC)*BGL/(1-DGC))/((1+LGC)*BGL/(1-LGC) + (1+DGC)*BGL/(1-DGC))
+% MeanLum = ((1+LGC)*BGL/(1-LGC) + (1+DGC)*BGL/(1-DGC))/2;
+% GC = [0 0.05 0.1 0.15 0.20 0.4 0.8];
+GC = 0.005
+MeanLum = 0.5;
+LGC = (GC.*MeanLum + MeanLum - BGL)./(GC.*MeanLum + MeanLum + BGL)
+DGC = (-GC.*MeanLum + MeanLum - BGL)./(-GC.*MeanLum + MeanLum + BGL)
+%%
+LGC = 0.69230;
+DGC = 0.63640;
+BGL = 0.1;
+GC = ((1+LGC).*BGL./(1-LGC) - (1+DGC).*BGL./(1-DGC))./((1+LGC).*BGL./(1-LGC) + (1+DGC).*BGL./(1-DGC))
+% MeanLum = ((1+LGC)*BGL/(1-LGC) + (1+DGC)*BGL/(1-DGC))/2;
