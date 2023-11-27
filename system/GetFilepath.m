@@ -16,52 +16,26 @@ function filefullpath = GetFilepath(dirpath,searchpattern)
 % Date: Nov. 2, 2012
 %
 
-% get path delimiter
-if isunix
-    PathDelimiter = '/';
-elseif ispc
+if ispc
     PathDelimiter = '\';
-end
-% check the avaliability of the dirpath
-if (exist(dirpath,'dir')==7)
-    Rdirpath = genpath(dirpath); % recursively generate dir paths under root path
-    % get individual directory into a cell array
-    if isunix
-        % path delimiter is : under unix
-        cRdirpath = textscan(Rdirpath,'%s','Delimiter',':');
-    elseif ispc
-        % path delimiter is ; under pc dos
-        cRdirpath = textscan(Rdirpath,'%s','Delimiter',';');
-    end
-    cRdirpath = cRdirpath{1};
-    % get wanted file paths under all sub folders
-    if exist('searchpattern','var')
-        counter = 0; % counter for non-empty folders
-        for diridx = 1:numel(cRdirpath)
-            tmp_dirpath = cRdirpath{diridx};
-            ifilepath = dir([tmp_dirpath, PathDelimiter, searchpattern]);
-            if ~isempty(ifilepath)
-                counter = counter +1;
-                NumFiles = numel(ifilepath);
-                for fileidx = 1:NumFiles
-                    filefullpath{counter}(fileidx).name = [tmp_dirpath PathDelimiter ifilepath(fileidx).name];
-                    filefullpath{counter}(fileidx).datenum = ifilepath(fileidx).datenum;
-                    filefullpath{counter}(fileidx).date = ifilepath(fileidx).date;
-                    filefullpath{counter}(fileidx).bytes = ifilepath(fileidx).bytes;
-                    filefullpath{counter}(fileidx).isdir = ifilepath(fileidx).isdir;
-                end
-            end
-        end
-        if counter == 0 % search pattern not found
-            filefullpath = [];
-        else
-            filefullpath = cell2mat(filefullpath);
-        end
-    else
-        for diridx = 1:numel(cRdirpath)-1
-            filefullpath(diridx).name = cRdirpath{diridx+1};
-        end
-    end
+    tmpfilepath = 'c:\GestFilepathTmp.txt';
+    cmd = ['dir "',dirpath,PathDelimiter,searchpattern,'" /l /s /b /-c > ',tmpfilepath];
+%     cmd = ['dir "',dirpath,PathDelimiter,searchpattern,'" /l /s /b /-c'];
+    status = dos(cmd);
 else
-    error('User input root path not exist!')
+    PathDelimiter = '/';
+    disp('Not implemented yet on your OS')
+end
+
+% read in the file list
+fp = fopen(tmpfilepath,'r');
+linenum = 0;
+while(~feof(fp))
+    linenum = linenum+1;
+    thisLine = fgetl(fp);
+    filefullpath.path{linenum} = thisLine;
+end
+
+fclose(fp);
+delete(tmpfilepath)
 end

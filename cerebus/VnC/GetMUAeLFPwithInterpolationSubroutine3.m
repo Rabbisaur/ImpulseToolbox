@@ -48,6 +48,8 @@ Fbp=[49,51];
 N  = 2;    % filter order
 [Bbs, Abs] = butter(N, [min(Fbp)/Fn max(Fbp)/Fn],'stop'); % Bandstop
 
+RawData(isnan(RawData)) = 0; % replace nan with zeros
+
 % band stop filtering 50Hz
 BSdata = filtfilt(Bbs, Abs, RawData);
 
@@ -75,7 +77,7 @@ FRdata = abs(BPdata);
 clearvars BPdata
 
 % linear interpolation
-if interpolationLength > 0
+if interpolationLength > 0 && ~isempty(interpolationTimepoints)
     % calculate interpolation parameters
     NumTrials = size(FRdata,2);
     xx = 1:size(FRdata,1);

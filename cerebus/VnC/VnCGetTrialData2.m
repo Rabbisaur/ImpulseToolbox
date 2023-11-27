@@ -1,4 +1,4 @@
-function electrodeTrialData = VnCGetTrialData2(instanceinfo, instanceNumber, ElecNumber,TrialAlignST,trialParam)
+function electrodeTrialData = VnCGetTrialData2(instanceinfo, ElecNumber,TrialAlignST,trialParam)
 
 % if ispc
 %     slash = '\';
@@ -6,30 +6,28 @@ function electrodeTrialData = VnCGetTrialData2(instanceinfo, instanceNumber, Ele
 %     slash = '/';
 % end
 
-thisInstance = instanceNumber;
+% thisInstance = instanceNumber;
 % build basic trial index
-SampleRate = double(instanceinfo(thisInstance).samplerate);
+SampleRate = double(instanceinfo.samplerate);
 TrialTimeIndex = trialParam.startT * SampleRate : trialParam.endT * SampleRate;
 
-numValidTrials = numel(TrialAlignST);
-numDPinaTrial = numel(TrialTimeIndex);
-
-TrialTimeIndex = repmat(TrialTimeIndex,numValidTrials,1);
-TrialAlignSTmat = repmat(TrialAlignST,1,numDPinaTrial);
-% build the full trial index
-% [~,trialIdx] = max(instanceinfo(thisInstance).trialInfo.NumDP);
-TrialTimeIndex = TrialTimeIndex+TrialAlignSTmat;
+TrialTimeIndex = bsxfun(@plus,TrialTimeIndex,TrialAlignST');    
 
 % build trial matrix
 
 % load electrode data back and build aligned trial data matrix
 % numDP = instanceinfo(thisInstance).trialInfo.NumDP(trialIdx);
-thisElec = find(instanceinfo(thisInstance).ElecOrder == ElecNumber);
+thisElec = find(instanceinfo.ElecOrder == ElecNumber);
     
     % load data
-    elecfp = fopen(instanceinfo(thisInstance).electrodeCachePath{ElecNumber},'r');
+    datapath = instanceinfo.electrodeCachePath{ElecNumber};
+    elecfp = fopen(datapath,'r');
     tmpdata = fread(elecfp,inf,'int16=>double');
     fclose(elecfp);
+    tmp = TrialTimeIndex < 1;
+    TrialTimeIndex(tmp) = 1;
+    tmp = TrialTimeIndex > numel(tmpdata);
+    TrialTimeIndex(tmp) = numel(tmpdata);
     trialRawData = tmpdata(TrialTimeIndex);
     % output
     electrodeTrialData.trialData = trialRawData;

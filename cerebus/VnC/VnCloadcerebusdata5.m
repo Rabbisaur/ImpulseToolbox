@@ -17,14 +17,19 @@ end
 
 % look for all the data from all instances
 filepath = GetFilepath(sessionpath,'*.nev');
-NumofNEVfiles = numel(filepath);
+NumofNEVfiles = numel(filepath.path);
 
 for thisFile = 1:NumofNEVfiles
     % for each nev, we look for instanceN, we only read out instances
     % specified in the input argument
-    idx = find(filepath(thisFile).name==slash,1,'last');
-    idx2 = find(filepath(thisFile).name=='.',1,'last');
-    filename = filepath(thisFile).name((idx+1):(idx2-1));
+    %     idx = find(filepath(thisFile).name==slash,1,'last');
+    %     idx2 = find(filepath(thisFile).name=='.',1,'last');
+    %     filename = filepath(thisFile).name((idx+1):(idx2-1));
+    
+    idx = find(filepath.path{thisFile}==slash,1,'last');
+    idx2 = find(filepath.path{thisFile}=='.',1,'last');
+    filename = filepath.path{thisFile}((idx+1):(idx2-1));
+    
     idx = strfind(filename,'instance');
     InstanceNumber(thisFile) = str2double(filename((idx+8):end));
 end
@@ -40,10 +45,10 @@ memoryCacheSize = 2048*10^6;
 for thisfile = 1:NumFiles
     thisfileIdx = FileIdx(thisfile);
     
-%     for thisfile = 6
+    %     for thisfile = 6
     try
         % first read all the nev files without reading the wave forms.
-        currentNevpath = filepath(thisfileIdx).name;
+        currentNevpath = filepath.path{thisfileIdx};
         % create mat folder for the current file
         idx1 = find(currentNevpath == slash,1,'last');
         idx2 = find(currentNevpath == '.',1,'last');
@@ -69,6 +74,8 @@ for thisfile = 1:NumFiles
         instance(thisfile).instanceID = InstanceNumber(thisfileIdx);
         instance(thisfile).nev.digitimestamps = nevdata.Data.SerialDigitalIO.TimeStamp;
         instance(thisfile).nev.digidata = nevdata.Data.SerialDigitalIO.UnparsedData;
+        instance(thisfile).nev.MetaTags = nevdata.MetaTags;
+        instance(thisfile).nev.ElectrodeInfo = nevdata.ElectrodesInfo;
         
         % load raw data
         %% load 30KHz continuous signal.
@@ -167,7 +174,7 @@ for thisfile = 1:NumFiles
             Trial.position(TrialNum) = ftell(NsxID);
             Header = fread(NsxID,1,'int8=>int8');
             if Header ~= 1
-%                 error('Header seek error, abort!');
+                %                 error('Header seek error, abort!');
                 % discard the extradata following the previous trial
                 Trial.position(TrialNum) = [];
                 TrialNum = TrialNum - 1;
@@ -188,19 +195,20 @@ for thisfile = 1:NumFiles
         instance(thisfile).trialInfo.position = Trial.position;
         instance(thisfile).trialInfo.Timestamp = Trial.Timestamp;
         instance(thisfile).trialInfo.NumDP = Trial.NumDP;
-        
+        instance(thisfile).nsxheader.basic = NsxBasic;
+        instance(thisfile).nsxheader.extended = NsxExtend;
         
         % make electrode cache files on disk
         disp('Making electrode cache files')
         elecfp = zeros(NumValidElec,1);
         for thisElec = 1:NumValidElec
             EID = ElecOrder(thisElec);
-%             if isempty(cacheDir)
-                savedir = [currentMatdir,slash,'elec',num2str(EID)];
-%             else
-%                 idx = find(currentMatdir == slash,1,'last');
-%                 savedir = [cacheDir,slash,currentMatdir((idx+1):end),slash,'elec',num2str(EID)];
-%             end
+            %             if isempty(cacheDir)
+            savedir = [currentMatdir,slash,'elec',num2str(EID)];
+            %             else
+            %                 idx = find(currentMatdir == slash,1,'last');
+            %                 savedir = [cacheDir,slash,currentMatdir((idx+1):end),slash,'elec',num2str(EID)];
+            %             end
             if ~exist([savedir,slash,'tmp'],'dir')
                 mkdir([savedir,slash,'tmp']);
             end
@@ -216,8 +224,8 @@ for thisfile = 1:NumFiles
         disp(['Working on file ', num2str(thisfile),'/',num2str(NumofNEVfiles)])
         
         % guess the correct trial, the trial with most data
-
-%         [~,trialIdx] = max(Trial.NumDP);
+        
+        %         [~,trialIdx] = max(Trial.NumDP);
         CurrentTimestamp = 1;
         for thisTrial = 1:TrialNum
             disp(['  Working on trial ', num2str(thisTrial),'/',num2str(TrialNum)])
@@ -233,13 +241,13 @@ for thisfile = 1:NumFiles
                 end
             end
             
-
+            
             % write in a zero padding to align the data to the NEV file
             NumPadding = Trial.Timestamp(thisTrial) - CurrentTimestamp;
             if NumPadding < 0
                 warning('Num padding less than zero, check data.')
             end
-
+            
             if numChunks == 0
                 % this trial has no data, skip to the next
                 disp('This trail has no data, skip to the next.')

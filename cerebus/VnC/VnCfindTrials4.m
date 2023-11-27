@@ -1,8 +1,8 @@
-function instanceinfo = VnCfindTrials4(instanceinfo,numTrialinMat,TrialBit,AlignBit)
+function instanceinfo = VnCfindTrials4(instanceinfo,numTrialinMat,TrialBit,AlignBit,xingFlag)
 
 % define
 MaxPossibleNumberTrials = 20000;
-xingFlag = 1; % default guess
+% xingFlag = 0; % default guess
 
 if numTrialinMat>0
     MaxPossibleNumberTrials = numTrialinMat;
@@ -77,13 +77,11 @@ for thisInstance = 1:numInstances
             trialDigiCode{trials} = instanceinfo(thisInstance).nev.digidata(idx);
             trialDigiCodeST{trials} = instanceinfo(thisInstance).nev.digitimestamps(idx);
         end
+    else
+        xingFlag = 1;
     end
     
-    if xingFlag
-        numTrials = trials;
-    else
-        
-    end
+    numTrials = trials;
     
     disp(['Got ', num2str(numTrials), ' trials.'])
     
@@ -174,6 +172,9 @@ if xingFlag
         badInstanceIdx(thisInstance) = sum(idx) > 0;
     end
     goodInstanceIdx = badInstanceIdx==0;
+    if sum(goodInstanceIdx) == 0
+        error('No good instance with valid trial serial numbers')
+    end
     badInstanceIdx = find(badInstanceIdx);
     NumBadinstance = numel(badInstanceIdx);
     if  NumBadinstance > 0
@@ -184,8 +185,10 @@ if xingFlag
             InstanceIdx = badInstanceIdx(thisBadInstance);
             disp(['Repairing instance ',num2str(InstanceIdx)]);
             % find an anchor point
-            idx1 = instanceinfo.instanceID == InstanceIdx;
-            idx2 = instanceinfo.instanceID == goodInstanceIdx;
+%             matinstanceID = reshape([instanceinfo.instanceID],[],1);
+            matinstanceID = 1:numel(instanceinfo);
+            idx1 = matinstanceID == InstanceIdx;
+            idx2 = matinstanceID == goodInstanceIdx;
             trialNumberDiff = instanceinfo(idx1).trialInfo.trialNumberinSerial - instanceinfo(idx2).trialInfo.trialNumberinSerial;
             AnchorTrial = find(trialNumberDiff == 0,1,'last');
             disp(['Trial #', num2str(AnchorTrial), ' is used as an anchor for calcuating the time difference between instances'])

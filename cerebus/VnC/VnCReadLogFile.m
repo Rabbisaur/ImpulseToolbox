@@ -43,7 +43,7 @@ while ~feof(fp)
     tmp = textscan(thisline,'%f','delimiter',';');
     tmp = tmp{1};
 
-    if numel(tmp) == numel(fieldnames) - 1
+    if numel(tmp) == numel(fieldnames)
         for thisCell = 1:numel(tmp)
             cmd = ['explog.',fieldnames{thisCell},'(', num2str(thisTrial), ')=',num2str(tmp(thisCell)),';'];
             eval(cmd);

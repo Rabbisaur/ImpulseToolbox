@@ -37,6 +37,20 @@ thisElec = find(instanceinfo(thisInstance).ElecOrder == ElecNumber);
     numTrials = numel(instanceinfo(thisInstance).trialInfo.beginST);
     trialRawData = cell(numTrials,1);
     for thisTrial = 1:numTrials
+        if instanceinfo(thisInstance).trialInfo.beginST(thisTrial) == 0
+            if thisTrial > 1
+                instanceinfo(thisInstance).trialInfo.beginST(thisTrial) = instanceinfo(thisInstance).trialInfo.endST(thisTrial-1);
+            elseif thisTrial == 1
+                instanceinfo(thisInstance).trialInfo.beginST(thisTrial) = 1;
+            end
+        end
+        if instanceinfo(thisInstance).trialInfo.endST(thisTrial) == 0
+            if thisTrial == numel(instanceinfo(thisInstance).trialInfo.beginST)
+                instanceinfo(thisInstance).trialInfo.endST(thisTrial) = numel(tmpdata);
+            else
+                instanceinfo(thisInstance).trialInfo.endST(thisTrial) = instanceinfo(thisInstance).trialInfo.beginST(thisTrial+1);
+            end
+        end
         TrialTimeIndex = instanceinfo(thisInstance).trialInfo.beginST(thisTrial) : instanceinfo(thisInstance).trialInfo.endST(thisTrial);
         trialRawData{thisTrial} = tmpdata(TrialTimeIndex);
     end
