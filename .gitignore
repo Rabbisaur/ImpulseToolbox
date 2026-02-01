@@ -1,0 +1,18 @@
+# MATLAB
+*.asv
+*.m~
+*.log
+slprj/
+sfprj/
+*.mex*
+*.slx.r20*
+*.autosave
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Cleanup Tool
+_cleanup/
+_cleanup_report.md
+mnismatches.txt

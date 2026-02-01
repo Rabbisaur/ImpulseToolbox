@@ -1,6 +1,0 @@
-% Get GPU info
-HGPU = gpuDevice;
-% Get CPU info
-import java.lang.*;
-r=Runtime.getRuntime;
-NumCpu=r.availableProcessors;
