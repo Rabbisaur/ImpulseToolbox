@@ -1,0 +1,270 @@
+VERSION ANALYSIS REPORT
+Generated: 12-Feb-2026 13:56:40
+
+=======================================================
+IDENTICAL FILES (64 files - safe to delete)
+=======================================================
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DefaultPara1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DefaultPara.mat
+  Size: 2609 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DefaultPara_bak1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DefaultPara_bak.mat
+  Size: 2601 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\RawData1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\RawData.mat
+  Size: 1648484 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\HMM\LFP1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\HMM\LFP.mat
+  Size: 384351 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\HMM\observation1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\HMM\observation.mat
+  Size: 447508 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\HMM\HMMTrainAnalysis\spikes072501_n07-300s-1-11.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\HMM\HMMTrainAnalysis\spikes072501_n07-300s-1-1.mat
+  Size: 28880 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Elec12Spike1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Elec12Spike.mat
+  Size: 12878 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Elec12Unit1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Elec12Unit.mat
+  Size: 1119 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Elec12Waveform1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Elec12Waveform.mat
+  Size: 374183 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\ExpMonitor1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\ExpMonitor.mat
+  Size: 810 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\Elec12LFP1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\Elec12LFP.mat
+  Size: 1344521 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\Elec12Spike1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\Elec12Spike.mat
+  Size: 12878 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\Elec12Unit1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\Elec12Unit.mat
+  Size: 1119 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\Elec12Waveform1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\Elec12Waveform.mat
+  Size: 374183 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\ExpMonitor1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Li lab@BNU\ExpMonitor.mat
+  Size: 810 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Lu lab@BNU\Elec1Spike1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Lu lab@BNU\Elec1Spike.mat
+  Size: 13404 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Lu lab@BNU\Elec1Waveform1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SampleData\Lu lab@BNU\Elec1Waveform.mat
+  Size: 601473 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\adopted\salpa\sampledataHard1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\adopted\salpa\sampledataHard.mat
+  Size: 262052 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\basic_analysis_functions\CCGsampledata\train11.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\basic_analysis_functions\CCGsampledata\train1.mat
+  Size: 2359 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\basic_analysis_functions\CCGsampledata\train21.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\basic_analysis_functions\CCGsampledata\train2.mat
+  Size: 1704 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\butterworthbandstop100hz1.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\butterworthbandstop100hz.mat
+  Size: 767 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\cerebusHP2501.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\cerebusHP250.mat
+  Size: 2304 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\cerebusLP1251.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\cerebusLP125.mat
+  Size: 2304 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\firbandpass300_30001.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\firbandpass300_3000.mat
+  Size: 6105 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\firbandpass300_50001.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\firbandpass300_5000.mat
+  Size: 6096 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\firhipass3001.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\firhipass300.mat
+  Size: 1862 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\iirbandpass300_30001.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\filter\iirbandpass300_3000.mat
+  Size: 1098 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\stimulus_generation\seq161.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\stimulus_generation\seq16.mat
+  Size: 117424 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\stimulus_generation\mseq\seq161.mat
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\stimulus_generation\mseq\seq16.mat
+  Size: 117424 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Parameters1.fig
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Parameters.fig
+  Size: 76382 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Parameters_Reserved1.fig
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Parameters_Reserved.fig
+  Size: 76382 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SpikeCluster1.fig
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SpikeCluster.fig
+  Size: 162085 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SpikeCluster_Reserved1.fig
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SpikeCluster_Reserved.fig
+  Size: 32572 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\adopted\TDT2ML\Hdfsi1.fig
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\adopted\TDT2ML\Hdfsi.fig
+  Size: 4430 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\adopted\TDT2ML\tdtaccess1.fig
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\adopted\TDT2ML\tdtaccess.fig
+  Size: 3146 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\Nlx2MatSE1.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\Nlx2MatSE.dll
+  Size: 122880 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\msvcp711.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\msvcp71.dll
+  Size: 499712 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\msvcr711.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\msvcr71.dll
+  Size: 348160 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\nsNEVLibrary1.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\nsNEVLibrary.dll
+  Size: 151552 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\nsNEVLibrary641.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\DataIO\Neuroshare\nsNEVLibrary64.dll
+  Size: 269824 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\LoadingEngines\nsNEVLIbrary 3.05\NevLIb-3-05\Windows\msvcp711.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\LoadingEngines\nsNEVLIbrary 3.05\NevLIb-3-05\Windows\msvcp71.dll
+  Size: 499712 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\LoadingEngines\nsNEVLIbrary 3.05\NevLIb-3-05\Windows\msvcr711.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\LoadingEngines\nsNEVLIbrary 3.05\NevLIb-3-05\Windows\msvcr71.dll
+  Size: 348160 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\LoadingEngines\nsNEVLIbrary 3.05\NevLIb-3-05\Windows\nsNEVLibrary1.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\LoadingEngines\nsNEVLIbrary 3.05\NevLIb-3-05\Windows\nsNEVLibrary.dll
+  Size: 151552 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\LoadingEngines\nsNEVLIbrary 3.05\NevLIb-3-05\Windows\nsNEVLibrary641.dll
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\LoadingEngines\nsNEVLIbrary 3.05\NevLIb-3-05\Windows\nsNEVLibrary64.dll
+  Size: 269824 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\10by10by10_3D1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\10by10by10_3D.ecp
+  Size: 17101 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\10by40by10_3D1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\10by40by10_3D.ecp
+  Size: 840 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\10by4by40_3D1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\10by4by40_3D.ecp
+  Size: 28141 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\1by1by40_3D1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\1by1by40_3D.ecp
+  Size: 840 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\6by4by20_3D1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\6by4by20_3D.ecp
+  Size: 8284 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\6by4by40_3D1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\6by4by40_3D.ecp
+  Size: 16924 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\9by1by9Comb1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\9by1by9Comb.ecp
+  Size: 23429 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\9by9Comb1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\9by9Comb.ecp
+  Size: 1395 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\9by9by9_3D1.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\9by9by9_3D.ecp
+  Size: 8284 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\Utah10by101.ecp
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\RainerNestor\Utah10by10.ecp
+  Size: 1900 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Docs\SpikeCluster_Logo1.pdf
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Docs\SpikeCluster_Logo.pdf
+  Size: 23989 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Docs\SpikeCluster_Mannual1.pdf
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Docs\SpikeCluster_Mannual.pdf
+  Size: 541858 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\Users Guide1.pdf
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\Users Guide.pdf
+  Size: 239394 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\HMM\COPYING1.txt
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\HMM\COPYING.txt
+  Size: 1290 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Multiwavelet\Copyright1.txt
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Multiwavelet\Copyright.txt
+  Size: 626 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Multiwavelet\MWMP.README1.txt
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\Multiwavelet\MWMP.README.txt
+  Size: 6563 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SUMU\README1.txt
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\SUMU\README.txt
+  Size: 5192 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\isoitools\readme1.txt
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\isoitools\readme.txt
+  Size: 3625 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\isoitools\wavex1.txt
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\SpikeCluster\isoitools\wavex.txt
+  Size: 2982180 bytes
+
+C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\Versions1.txt
+  Original: C:\Users\wang\Documents\GitHub\ImpulseToolbox\cerebus\NPMK\NPMK-4.4.0.0\Versions.txt
+  Size: 10713 bytes
+
+
+=======================================================
+NEWER VERSIONS (0 files - REVIEW BEFORE DELETING!)
+=======================================================
+
+=======================================================
+OLDER VERSIONS (0 files)
+=======================================================
