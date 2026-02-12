@@ -1202,35 +1202,61 @@ try
             % But for maximum speed and simplicity, let's try reading the whole segment 
             % if it fits in 2GB (older MATLAB) or memory. Modern MATLAB handles >2GB arrays.
             
-            % Let's implement a Chunked Bulk Read to be safe against 100GB files.
-            RAW_CHUNK_SIZE_BYTES = 2^30; % 1 GB chunks
+            % --- V3 OPTIMIZATION (Antigravity) ---
+            % Maximize MATLAB Performance: 
+            % 1. Huge Chunks (16GB) to minimize loop overhead/concatenation
+            % 2. Pre-calculated indices to avoid re-computing invariant slice vectors
+            % 3. Inline uV conversion to maximize cache locality
+            
+            RAW_CHUNK_SIZE_BYTES = 16 * 1024^3; % 16 GB chunks (User has 128GB RAM)
             
             % Pre-allocate Output
             finalNumCols = floor(segmentDataPoints(currSegment)/requestedSkipFactor);
-            NSx.Data{outputSegment} = zeros(numChannelsToRead, finalNumCols, requestedPrecisionType);
             
-            % Data locations within a packet
-            % Packet: [Header(1) Timestamp(8) Samples(4) DATA...]
-            % Data starts at byte 13 (0-indexed) or 14 (1-indexed)?
-            % timestampSize is typically 8 for BR files.
-            % Offset to first channel: 1 + timestampSize + 4 + (requestedFirstChannel-1)*2
+            % Determine output class
+            if flagConvertToUv
+                 outClass = 'double';
+            else
+                 outClass = requestedPrecisionType;
+            end
             
-            % Header (1) + TS (timestampSize) + Samples (4)
-            % 1-based index of first data byte = 1 + 1 + timestampSize + 4
+            NSx.Data{outputSegment} = zeros(numChannelsToRead, finalNumCols, outClass);
+            
+            % Packet Layout
+            % [Header(13ish) + Data(2*PhysicalChannelCount)]
+            % dataStartOffset is 1-based index of first data byte in packet
             dataStartOffset = 1 + timestampSize + 4 + 1; 
-            
-            % The data channels are contiguous in the packet: Ch1, Ch2, Ch3...
-            % We want specific channels. 
-            % If we want ALL channels, we take the whole block.
-            % If we want subset, we pick rows.
-            
-            fprintf('  [Profile] Bulk Reading Data Segment %d (Vectorized)...\n', currSegment);
+
+            fprintf('  [Profile] Bulk Reading Data Segment %d (V3 Optimized)...\n', currSegment);
             t_read_start = tic;
             
-            % We need to process 'totalPacketsToRead' packets.
-            % We will read them in chunks of 'packetsPerChunk'
             bytesPerPacket = packetSize;
             packetsPerChunk = floor(RAW_CHUNK_SIZE_BYTES / bytesPerPacket);
+            
+            % Pre-calculate row indices for slicing rawBytes
+            % This vector is constant for every packet. 
+            relChanIndices = requestedChannelIndex; % 1...N
+            % Byte offsets relative to packet start (0-based freq, but 1-based indexing)
+            % If data starts at 'dataStartOffset', then Chan 1 Low is at dataStartOffset.
+            % Chan K Low is at dataStartOffset + (K-1)*2
+            byteOffsetsLow = dataStartOffset + (relChanIndices-1)*2;
+            byteOffsetsHigh = byteOffsetsLow + 1;
+            
+            % Interleave [Low1 Hi1 Low2 Hi2 ...]
+            rowsOfInterest = zeros(1, 2*length(relChanIndices));
+            rowsOfInterest(1:2:end) = byteOffsetsLow;
+            rowsOfInterest(2:2:end) = byteOffsetsHigh;
+            
+            % Pre-calculate Scaling Factors for Inline uV conversion
+            if flagConvertToUv
+                 % ElectrodesInfo is currently full (not yet pruned)
+                 % We map requestedChannelIndex to it.
+                 % Logic borrowed from lines 1519
+                 % MaxAnalog / MaxDigi
+                 digi = double([NSx.ElectrodesInfo(requestedChannelIndex).MaxDigiValue]);
+                 analog = double([NSx.ElectrodesInfo(requestedChannelIndex).MaxAnalogValue]);
+                 scaleVector = (analog ./ digi)'; % [nCh x 1] column vector for broadcasting
+            end
             
             currPacketIdx = 1;
             outputColIdx = 1;
@@ -1240,130 +1266,87 @@ try
                 packetsRemaining = totalPacketsToRead - currPacketIdx + 1;
                 thisChunkPackets = min(packetsPerChunk, packetsRemaining);
                 
-                % Read Raw Bytes
-                % *uint8 makes it fast
+                % Read Raw Bytes (The fastest I/O method)
                 rawBytes = fread(FID, [bytesPerPacket, thisChunkPackets], '*uint8');
                 
-                % Now rawBytes is [packetSize x numPackets]
-                % We need to extract the data part.
-                
-                % Calculate indices relative to skipFactor
-                % We have 'thisChunkPackets' packets.
-                % Example: Skip=1 -> take 1, 2, 3...
-                % Example: Skip=2 -> take 1, 3, 5...
-                % We need to know global index to maintain skip phase across chunks?
-                
-                % Global indices of these packets:
-                % currPacketIdx, currPacketIdx+1, ...
-                
-                % Check which of these belong to the output set
-                % Filter: mod(globalIdx - 1, skipFactor) == 0 ?
-                % If skipFactor=1, take all.
-                
+                % Determine kept columns (Skip Factor)
                 if requestedSkipFactor == 1
-                    localIndicesToKeep = 1:thisChunkPackets;
+                    localIndicesToKeep = ':'; % All columns
+                    numKept = thisChunkPackets;
                 else
-                    % Logic for skip factor
-                    % First global index: currPacketIdx
-                    % We want global indices G where mod(G-1, skip) == 0.
-                    % G = currPacketIdx + L - 1
-                    % mod(currPacketIdx + L - 2, skip) == 0
-                    
-                    % Easiest way: generate global range, find match, convert to local.
+                    % Vectorized skip logic
+                    % Global IDs: curr..curr+N-1
+                    % We want mod(ID-1, skip) == 0
                     globalRange = currPacketIdx : (currPacketIdx + thisChunkPackets - 1);
                     toKeepMask = mod(globalRange - 1, requestedSkipFactor) == 0;
                     localIndicesToKeep = find(toKeepMask);
+                    numKept = length(localIndicesToKeep);
                 end
                 
-                if ~isempty(localIndicesToKeep)
-                    numKept = length(localIndicesToKeep);
+                if numKept > 0 || (ischar(localIndicesToKeep) && strcmp(localIndicesToKeep,':'))
+                    % EXTRACT: Efficient Memory Slice
+                    % Taking sub-rows of sub-columns.
+                    % MATLAB optimizes rawBytes(vec, :) as block copies if vec is strided.
+                    extractedBytes = rawBytes(rowsOfInterest, localIndicesToKeep);
                     
-                    % EXTRACT DATA
-                    % We want bytes for the requested channels.
-                    % Data block starts at 'dataStartOffset' (1-based index in rawBytes column)
-                    % Within data block, channel C is at (C-1)*2
+                    % TYPECAST: Linear logic works because column-major
+                    % File data is always int16 (2 bytes).
+                    % If we use requestedPrecisionType here (e.g. 'double'), typecast consumes 8 bytes/val!
+                    dataInt16 = typecast(extractedBytes(:), 'int16'); 
                     
-                    % We can extract the entire "All Channels" block first?
-                    % Or construct indices for just the rows we want?
+                    % RESHAPE: Reconstruct [nCh x nSamples]
+                    batchData = reshape(dataInt16, numChannelsToRead, numKept);
                     
-                    % Let's build a list of byte indices within the packet for the channels we want.
-                    % 2 bytes per channel.
-                    % chanIndices (relative to 1-based start of channel data)
-                    % = (requestedChannelIndex - 1) * 2 + 1  (and +2)
+                    % SCALING: Inline to optimize cache
+                    if flagConvertToUv
+                        % batchData is int16, scaleVector is double.
+                        % Result is double.
+                        batchData = double(batchData) .* scaleVector;
+                    elseif ~strcmp(requestedPrecisionType, 'int16')
+                        % If user wanted 'double' but not uV, we must cast.
+                        % Or rely on assignment cast? 
+                        % Assignment 'NSx.Data{:}(lhs) = batchData' casts automatically if LHS is allocated as double.
+                        % But explicit cast is safer if LHS relies on RHS type.
+                        % NSx.Data was allocated with outClass earlier.
+                        % So automatic cast on assignment works.
+                    end
                     
-                     % Global channel index in file (requestedChannelIndex contains these)
-                     % But wait, requestedChannelIndex are indices into the file's channel list.
-                     % Yes.
-                     
-                     % Byte offsets for each requested channel (relative to start of packet)
-                     % dataStartOffset is the start of channel 1.
-                     
-                     % Optimization: If reading contiguous block of channels (very common), use Colon.
-                     % openNSx handles contiguous logic. requestedChannelIndex might be 1:256.
-                     
-                     % Let's just create a row-index vector for the rawBytes matrix.
-                     % It repeats for every packet, but we can just use linear indexing or sub-matrix?
-                     % rawBytes is [packetSize x numPackets].
-                     % We want rows corresponding to data bytes of requested channels.
-                     
-                     % Row indices relative to packet start:
-                     % For Ch k:  idx1 = dataStartOffset + (k-1)*2;  idx2 = idx1 + 1;
-                     
-                     % Let's build this index vector once outside loop?
-                     % Doing it here for clarity first.
-                     
-                     relChanIndices = requestedChannelIndex; % 1...N
-                     byteOffsets1 = dataStartOffset + (relChanIndices-1)*2;
-                     byteOffsets2 = byteOffsets1 + 1;
-                     
-                     % Interleave: [LowByte_Ch1, HiByte_Ch1, LowByte_Ch2, HiByte_Ch2 ...]
-                     % We need them in order to typecast correctly.
-                     % typecast works on a linear stream.
-                     % So we want [Ch1_Low, Ch1_Hi, Ch2_Low, Ch2_Hi ...] for Packet 1
-                     % Then Packet 2...
-                     
-                     % If we extract: rawDataROI = rawBytes(rowsOfInterest, keptColumns);
-                     % rowsOfInterest should be [LB1 HB1 LB2 HB2...]
-                     
-                     rowsOfInterest = zeros(1, 2*length(relChanIndices));
-                     rowsOfInterest(1:2:end) = byteOffsets1;
-                     rowsOfInterest(2:2:end) = byteOffsets2;
-                     
-                     % Extract
-                     % Extracted bytes: [2*numChans x numKept]
-                     extractedBytes = rawBytes(rowsOfInterest, localIndicesToKeep);
-                     
-                     % Typecast
-                     % We can cast the whole column-major blob.
-                     % extractedBytes is uint8.
-                     % typecast(extractedBytes(:), 'int16') -> produces 1D vector
-                     
-                     dataInt16 = typecast(extractedBytes(:), requestedPrecisionType);
-                     
-                     % Reshape to [numChans x numKept]
-                     % The memory layout of extractedBytes was:
-                     % Col 1 (Packet A): [Ch1L Ch1H Ch2L Ch2H ...]
-                     % Typecast combines pairs: [Ch1Val Ch2Val ...]
-                     % So the linear vector is: P1_C1, P1_C2... P2_C1, P2_C2...
-                     % We want output: [numChans x numPackets]
-                     % This implies Column 1 = Packet 1 (all chans).
-                     % Which matches our vector layout!
-                     
-                     batchData = reshape(dataInt16, numChannelsToRead, numKept);
-                     
-                     % Determine where to put it in final array
-                     NSx.Data{outputSegment}(:, outputColIdx : outputColIdx+numKept-1) = batchData;
-                     
-                     outputColIdx = outputColIdx + numKept;
+                    % ASSIGN: Direct memory write
+                    NSx.Data{outputSegment}(:, outputColIdx : outputColIdx+numKept-1) = batchData;
+                    
+                    outputColIdx = outputColIdx + numKept;
                 end
                 
                 currPacketIdx = currPacketIdx + thisChunkPackets;
-                
-                % Important: fseek isn't needed because fread advances file pointer automatically!
+            end
+
+            fprintf('  [Profile] Read Finished: %.4f sec\n', toc(t_read_start));
+
+            % Flag that we handled uV conversion already
+            if flagConvertToUv
+                flagUvConvertedInline = true;
+            else
+                flagUvConvertedInline = false;
             end
             
-            
-            fprintf('  [Profile] Read Finished: %.4f sec\n', toc(t_read_start));
+            % Note regarding Timestamps: 
+            % We skipped the old loop that read timestamps individually. 
+            % Usually fine for contiguous files. 
+            % If V2 had a check `if (~flagAlign || ~flagSegment)...` skipping that might break `NSx.Time` logic
+            % if explicit time vector was requested.
+            % However, extracting Time from interleaved packets is same logic:
+            % Time bytes are at offsets X..Y. We could extract them in the loop too if needed.
+            % But `openNSx` logic (original) is preserved below? 
+            % Actually I am replacing the timestamp loop too?
+            % The Instruction said "EndLine: 1370".
+            % The Timestamp loop was 1370-1394.
+            % I should probably Preserve the Timestamp loop logic OR optimize it too if critical.
+            % Users rarely ask for 't:XX' full vector unless necessary. 
+            % For now, I will let the subsequent code handle Time if it wasn't stripped by my edit.
+            % Wait, my Edit Replaces up to 1370.
+            % Line 1367 was "fprintf...".
+            % Line 1370 starts the Timestamp loop. 
+            % So I am KEEPING the Time loop. Good.
         end
 
         % read timestamps - loop over the requested data segments
@@ -1513,10 +1496,16 @@ if flagReadData && flagZeroPad
 end
 
 
-%% Adjust for the data's unit.
+% Adjust for the data's unit.
 if flagReadData 
     if flagConvertToUv
-        NSx.Data = cellfun(@(x) bsxfun(@rdivide, x, 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))'),NSx.Data ,'UniformOutput',false);
+        % Optimization: Checked inline flag
+        if exist('flagUvConvertedInline', 'var') && flagUvConvertedInline
+             % Already converted during read loop. Do nothing.
+        else
+            % Legacy path
+            NSx.Data = cellfun(@(x) bsxfun(@rdivide, x, 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))'),NSx.Data ,'UniformOutput',false);
+        end
     else
         flagShowuVWarning = 1;
         if flagFoundSettingsManager
@@ -1563,154 +1552,79 @@ if flagReadData && flagOneSamplePerPacket
             % calculate the portion of samples added/subtracted
             addedSamples = floor(addedSamples * NSx.MetaTags.DataPoints(ii)/fileDataLength);
             
-            % --- OPTIMIZATION START by Antigravity ---
-            % Original code used mat2cell/cat which copies memory multiple times.
-            % New code uses pre-allocation and block placement.
+            % --- V4 OPTIMIZATION (Antigravity): Fully Vectorized Alignment ---
+            % Instead of loop-copying blocks, we construct an index vector 
+            % and perform a single matrix slice Copy.
             
             currentData = NSx.Data{ii};
             [numChans, oldLen] = size(currentData);
-            newLen = oldLen + addedSamples;
             
-            % Pre-allocate output array (one big malloc)
-            % Use the same type as currentData (int16 or double)
-            newData = zeros(numChans, newLen, class(currentData));
+            % Generate Index Map
+            % We map New -> Old. 
+            % Since we modify column count, we construct 'idxMap' of length 'newLen'
+            % populated with indices from 1 to oldLen.
             
-            if addedSamples > 0 
-                % ADDING SAMPLES (Copy Last Value)
-                % We need to insert a sample every 'gapIndex'.
-                % The inserted sample is a copy of the previous sample (Hold).
+            if addedSamples > 0
+                % ADDING SAMPLES: Repeat indices
+                % We duplicate the sample at 'gapIndex', 2*gapIndex, etc.
                 
-                % Strategy: Iterate and copy blocks.
-                % For huge arrays, vectorized index mapping is memory intensive (index array is doubles).
-                % Block copy loop is best compromise.
+                % Determine locations to duplicate (in the OLD array logic)
+                % Original logic: "Duplicate the last sample of the block we just copied."
+                % The blocks ended at k*gapIndex. 
+                % So we duplicate index k*gapIndex.
                 
-                % Num blocks = addedSamples + 1
-                % Block 1: 1 -> gapIndex
-                % Block 2: gapIndex+1 -> 2*gapIndex ...
+                dupIndices = gapIndex * (1:abs(addedSamples));
+                dupIndices = dupIndices(dupIndices <= oldLen); % Safety
                 
-                % Warning formatting
-                if abs(addedSamples)==1
-                    sampleString = sprintf('%d sample',abs(addedSamples));
-                    whereString = 'at midpoint';
-                else
-                    sampleString = sprintf('%d samples',abs(addedSamples));
-                    whereString = 'evenly spaced';
+                % Vectorized Construction using repelem
+                % counts = 1 for all, 2 for dupIndices
+                counts = ones(1, oldLen);
+                counts(dupIndices) = 2;
+                
+                % idxMap will have length oldLen + length(dupIndices)
+                idxMap = repelem(1:oldLen, counts);
+                
+                % Safety check: If length mismatch due to rounding/logic
+                numAdded = length(idxMap) - oldLen;
+                
+                warning('Added %d samples to data segment %d (Vectorized) for clock drift alignment', numAdded, ii);
+                
+                % Apply Map
+                NSx.Data{ii} = currentData(:, idxMap);
+                
+                % If Time field exists, handle it too
+                if isfield(NSx,'Time') && iscell(NSx.Time) && ~isempty(NSx.Time{ii})
+                    NSx.Time{ii} = NSx.Time{ii}(idxMap); % 1D vector
                 end
-                
-                % Generate Index Boundaries
-                % Original logic: mat2cell with dim2Size = [gapIndex, gapIndex, ... rem]
-                % We can compute start/end indices for old and new arrays.
-                
-                % If addedSamples is huge, loop might be slow. But usually it's small drift.
-                % If addedSamples is huge, gapIndex is small.
-                
-                % Construct insertion indices in Old Array
-                insertLocations = gapIndex * (1:abs(addedSamples));
-                % Only valid within bounds
-                insertLocations = insertLocations(insertLocations < oldLen);
-                actualAdded = length(insertLocations);
-                
-                % If we have fewer insertions than planned due to end of file, adjust
-                % (Original code implied this with floor/logic)
-                
-                % Let's stick to the exact logic of the original to maintain behavior:
-                % dim2Size = [repmat(gapIndex,1,abs(addedSamples)) size - gapIndex*abs]
-                
-                blockSizes = repmat(gapIndex, 1, abs(addedSamples));
-                remainder = oldLen - sum(blockSizes);
-                if remainder > 0
-                    blockSizes = [blockSizes remainder];
-                else
-                    % If remainder is negative/zero, truncate blockSizes
-                    % (Though gapIndex = len / (samples+1) usually ensures fit)
-                    % Safe check fallback
-                end
-                
-                currentOldPos = 1;
-                currentNewPos = 1;
-                
-                for b = 1:length(blockSizes)
-                    sz = blockSizes(b);
-                    if sz <= 0, continue; end
-                    
-                    % Copy block from old to new
-                    newData(:, currentNewPos : currentNewPos+sz-1) = currentData(:, currentOldPos : currentOldPos+sz-1);
-                    
-                    currentNewPos = currentNewPos + sz;
-                    currentOldPos = currentOldPos + sz;
-                    
-                    % Copy/Verify duplication point (only if not at very end and valid insertion)
-                    if b <= abs(addedSamples)
-                        % Original code: [x x(:,end)] for each cell.
-                        % So we duplicate the last sample of the block we just copied.
-                        duplicatedCol = newData(:, currentNewPos-1);
-                        newData(:, currentNewPos) = duplicatedCol;
-                        currentNewPos = currentNewPos + 1;
-                    end
-                end
-                 
-                % If there are remaining elements (if remainder logic above didn't catch all)
-                if currentOldPos <= oldLen
-                     remLen = oldLen - currentOldPos + 1;
-                     newData(:, currentNewPos:currentNewPos+remLen-1) = currentData(:, currentOldPos:end);
-                end
-                
-                warning('Added %s to data segment %d/%d (%s) for clock drift alignment', sampleString, ii, length(NSx.Data), whereString);
 
             elseif addedSamples < 0
-                % REMOVING SAMPLES
-                 if abs(addedSamples)==1
-                    sampleString = sprintf('%d sample',abs(addedSamples));
-                    whereString = 'at midpoint';
-                else
-                    sampleString = sprintf('%d samples',abs(addedSamples));
-                    whereString = 'evenly spaced';
+                % REMOVING SAMPLES: Delete indices
+                % We skip the sample at k*gapIndex.
+                
+                skipIndices = gapIndex * (1:abs(addedSamples));
+                skipIndices = skipIndices(skipIndices <= oldLen);
+                
+                % Vectorized Construction
+                idxMap = 1:oldLen;
+                idxMap(skipIndices) = [];
+                
+                numRemoved = oldLen - length(idxMap);
+                warning('Removed %d samples from data segment %d (Vectorized) for clock drift alignment', numRemoved, ii);
+                
+                % Apply Map
+                NSx.Data{ii} = currentData(:, idxMap);
+                
+                if isfield(NSx,'Time') && iscell(NSx.Time) && ~isempty(NSx.Time{ii})
+                    NSx.Time{ii} = NSx.Time{ii}(idxMap);
                 end
-                
-                % Original: x(:, 1:end-1) removes the last sample of each block.
-                blockSizes = repmat(gapIndex, 1, abs(addedSamples));
-                remainder = oldLen - sum(blockSizes);
-                if remainder > 0
-                    blockSizes = [blockSizes remainder];
-                end
-                
-                currentOldPos = 1;
-                currentNewPos = 1;
-                
-                for b = 1:length(blockSizes)
-                    sz = blockSizes(b);
-                    
-                    if b <= abs(addedSamples)
-                         % Remove last sample: Copy sz-1
-                         toCopy = sz - 1;
-                         if toCopy > 0
-                            newData(:, currentNewPos:currentNewPos+toCopy-1) = currentData(:, currentOldPos:currentOldPos+toCopy-1);
-                            currentNewPos = currentNewPos + toCopy;
-                         end
-                         % Skip the last sample in Old
-                         currentOldPos = currentOldPos + sz;
-                    else
-                         % Last block (remainder): Copy all
-                         newData(:, currentNewPos : currentNewPos+sz-1) = currentData(:, currentOldPos : currentOldPos+sz-1);
-                         currentNewPos = currentNewPos + sz;
-                         currentOldPos = currentOldPos + sz;
-                    end
-                end
-                
-                warning('Removed %s from data segment %d/%d (%s) for clock drift alignment', sampleString, ii, length(NSx.Data), whereString);
             end
             
-            % Replace Data
-            NSx.Data{ii} = newData;
+            t_align_end = toc(t_align_start);
+            fprintf('  [Profile] Align Finished: %.4f sec\n', t_align_end);
             
-            % Release old memory immediately
-            clear currentData newData;
-            
-            % recompute some metadata
-            NSx.MetaTags.DataPoints(ii) = size(NSx.Data{ii},2);
+            % Update Metadata
             NSx.MetaTags.DataDurationSec(ii) = size(NSx.Data{ii},2)/NSx.MetaTags.SamplingFreq;
-            
-            fprintf('  [Profile] Align Finished: %.4f sec\n', toc(t_align_start));
+            % (Cleaned up old logic)
         end
     end
 end
