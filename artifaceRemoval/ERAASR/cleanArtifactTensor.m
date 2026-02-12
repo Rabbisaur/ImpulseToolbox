@@ -217,7 +217,7 @@ function [dataTensorCleaned, extract] = cleanArtifactTensor(dataTensor, varargin
             
             if ~quiet, prog = Utils.ProgressBar(nChannels, 'Cleaning over pulses for each individual channel'); end
             for c = 1:nChannels
-                if ~quiet, prog.update(r); end
+                if ~quiet, prog.update(c); end
                 pcaMat = pcaMatOverChannels(:, :, c); % TR x 1, weights are P x 1
                 [pcaCleaned(:, :, c), ~, pcaArt(:, :, c)] = cleanMatrixViaPCARegression(pcaMat, nPC_pulses, ...
                     'omitAdjacentChannelsBandWidth', obw_pulses, 'pcaOnlyOmitted', p.Results.pcaOnlyOmitted);
@@ -350,7 +350,7 @@ function [dataTensorCleaned, extract] = cleanArtifactTensor(dataTensor, varargin
                 saveFig();
             end
 
-            for iR = 1:numel(plotTrialIdx(iR))
+            for iR = 1:numel(plotTrialIdx)
                 figSetName('trials_cleaned_overPulses_trial%d', plotTrialIdx(iR));
                 PlotUtils.plotOverTrainAllChannels(segmentTensor, plotTrialIdx(iR));
                 saveFig();
