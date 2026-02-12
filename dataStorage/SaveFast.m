@@ -1,24 +1,24 @@
-function SaveMatFast_v2(filepath, varargin)
-% SAVEMATFAST_V2 - Fast binary save with multi-variable support
+function SaveFast(filepath, varargin)
+% SAVEFAST - Fast binary save with multi-variable support
 %
 % Syntax:
-%   SaveMatFast_v2(filepath, var1)                    % Single variable (backward compatible)
-%   SaveMatFast_v2(filepath, 'name1', var1, ...)      % Named variables
-%   SaveMatFast_v2(filepath, struct('a', 1, 'b', 2))  % Save struct fields as variables
+%   SaveFast(filepath, var1)                    % Single variable (backward compatible)
+%   SaveFast(filepath, 'name1', var1, ...)      % Named variables
+%   SaveFast(filepath, struct('a', 1, 'b', 2))  % Save struct fields as variables
 %
 % Examples:
 %   % Single variable (backward compatible)
 %   data = rand(1000);
-%   SaveMatFast_v2('test.bin', data);
+%   SaveFast('test.bin', data);
 %
 %   % Multiple named variables
 %   A = magic(5);
 %   B = 'hello';
-%   SaveMatFast_v2('test.bin', 'A', A, 'B', B);
+%   SaveFast('test.bin', 'A', A, 'B', B);
 %
 %   % Save struct fields
 %   results = struct('data', rand(100), 'params', struct('alpha', 0.1));
-%   SaveMatFast_v2('test.bin', results);
+%   SaveFast('test.bin', results);
 %
 % Features:
 %   - Multi-variable support (like MATLAB save)
@@ -37,20 +37,19 @@ function SaveMatFast_v2(filepath, varargin)
 %     - Name length + name
 %     - Data (using recursive serialization)
 %
-% See also: LoadMatFast_v2, SaveMatFast, LoadMatFast
+% See also: LoadFast, SaveMatFast, LoadMatFast
 
 % Version: 2.0
-% Author: Refactored for multi-variable support
 % Date: 2026-02-12
 
     %% Input Validation
     if nargin < 2
-        error('SaveMatFast_v2:NotEnoughInputs', ...
-            'Usage: SaveMatFast_v2(filepath, data) or SaveMatFast_v2(filepath, ''name1'', var1, ...)');
+        error('SaveFast:NotEnoughInputs', ...
+            'Usage: SaveFast(filepath, data) or SaveFast(filepath, ''name1'', var1, ...)');
     end
 
     if ~ischar(filepath) && ~isstring(filepath)
-        error('SaveMatFast_v2:InvalidFilepath', 'Filepath must be a string');
+        error('SaveFast:InvalidFilepath', 'Filepath must be a string');
     end
 
     filepath = char(filepath);
@@ -60,13 +59,13 @@ function SaveMatFast_v2(filepath, varargin)
     numVars = length(varNames);
 
     if numVars == 0
-        error('SaveMatFast_v2:NoVariables', 'No variables to save');
+        error('SaveFast:NoVariables', 'No variables to save');
     end
 
     %% Check file writability
     [fdir, ~, ~] = fileparts(filepath);
     if ~isempty(fdir) && ~exist(fdir, 'dir')
-        error('SaveMatFast_v2:DirectoryNotFound', ...
+        error('SaveFast:DirectoryNotFound', ...
             'Directory does not exist: %s', fdir);
     end
 
@@ -74,7 +73,7 @@ function SaveMatFast_v2(filepath, varargin)
     if exist(filepath, 'file')
         ftest = fopen(filepath, 'a');
         if ftest == -1
-            error('SaveMatFast_v2:PermissionDenied', ...
+            error('SaveFast:PermissionDenied', ...
                 'Cannot write to file (check permissions): %s', filepath);
         end
         fclose(ftest);
@@ -83,7 +82,7 @@ function SaveMatFast_v2(filepath, varargin)
     %% Open file for writing
     [fp, errormsg] = fopen(filepath, 'w');
     if ~isempty(errormsg) || fp == -1
-        error('SaveMatFast_v2:FileOpenError', ...
+        error('SaveFast:FileOpenError', ...
             'Failed to open file for writing: %s\nError: %s', filepath, errormsg);
     end
 
@@ -113,7 +112,7 @@ function SaveMatFast_v2(filepath, varargin)
 
             % Write variable name
             if length(varName) > 255
-                warning('SaveMatFast_v2:NameTooLong', ...
+                warning('SaveFast:NameTooLong', ...
                     'Variable name truncated to 255 chars: %s', varName);
                 varName = varName(1:255);
             end
@@ -163,7 +162,7 @@ function [names, values] = parseInputs(varargin)
         % Paired name-value arguments
         for i = 1:2:nargin
             if ~ischar(varargin{i}) && ~isstring(varargin{i})
-                error('SaveMatFast_v2:InvalidVariableName', ...
+                error('SaveFast:InvalidVariableName', ...
                     'Variable names must be strings. Argument %d is %s', ...
                     i, class(varargin{i}));
             end
@@ -172,7 +171,7 @@ function [names, values] = parseInputs(varargin)
 
             % Validate variable name
             if ~isvarname(varName)
-                error('SaveMatFast_v2:InvalidVariableName', ...
+                error('SaveFast:InvalidVariableName', ...
                     'Invalid MATLAB variable name: %s', varName);
             end
 
@@ -181,7 +180,7 @@ function [names, values] = parseInputs(varargin)
         end
 
     else
-        error('SaveMatFast_v2:InvalidArguments', ...
+        error('SaveFast:InvalidArguments', ...
             'Arguments must be pairs of (name, value) or a single struct/variable');
     end
 end
@@ -205,7 +204,7 @@ function writeElement(fp, data)
         {1,      2,       3,     4,      5,      6,       7,      8,       9,      10,      11,    12,       20,      21});
 
     if ~isKey(typeMap, tp)
-        warning('SaveMatFast_v2:UnsupportedType', ...
+        warning('SaveFast:UnsupportedType', ...
             'Unsupported type: %s. Saving as empty.', tp);
         writeEmptyElement(fp, tp);
         return;

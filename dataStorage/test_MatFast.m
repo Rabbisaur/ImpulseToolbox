@@ -14,7 +14,7 @@ function results = test_MatFast()
     fprintf('================================================================\n');
     fprintf('  MATFAST COMPREHENSIVE TEST SUITE\n');
     fprintf('================================================================\n');
-    fprintf('Testing: SaveMatFast, LoadMatFast, SaveMatFast_v2, LoadMatFast_v2\n');
+    fprintf('Testing: SaveMatFast, LoadMatFast, SaveFast, LoadFast\n');
     fprintf('Start time: %s\n', datestr(now));
     fprintf('================================================================\n\n');
 
@@ -45,7 +45,7 @@ function results = test_MatFast()
     results = runTest(results, @test_v1_large_data, 'V1: Large data (10MB)', testFile);
 
     %% ===== VERSION 2 TESTS (Refactored) =====
-    fprintf('\n===== TESTING VERSION 2 (Refactored SaveMatFast_v2/LoadMatFast_v2) =====\n\n');
+    fprintf('\n===== TESTING VERSION 2 (Refactored SaveFast/LoadFast) =====\n\n');
 
     results = runTest(results, @test_v2_single_variable, 'V2: Single variable (backward compat)', testFile);
     results = runTest(results, @test_v2_multi_variable, 'V2: Multiple variables', testFile);
@@ -254,8 +254,8 @@ end
 
 function test_v2_single_variable(testFile)
     data = rand(50, 50);
-    SaveMatFast_v2(testFile, data);
-    loaded = LoadMatFast_v2(testFile);
+    SaveFast(testFile, data);
+    loaded = LoadFast(testFile);
     assert(isstruct(loaded), 'Output should be struct');
     assert(isfield(loaded, 'data'), 'Should have field "data"');
     assert(isequal(data, loaded.data), 'Data mismatch');
@@ -266,8 +266,8 @@ function test_v2_multi_variable(testFile)
     B = 'hello';
     C = {1, 2, 3};
 
-    SaveMatFast_v2(testFile, 'A', A, 'B', B, 'C', C);
-    loaded = LoadMatFast_v2(testFile);
+    SaveFast(testFile, 'A', A, 'B', B, 'C', C);
+    loaded = LoadFast(testFile);
 
     assert(isstruct(loaded), 'Output should be struct');
     assert(isfield(loaded, 'A'), 'Should have field A');
@@ -280,8 +280,8 @@ end
 
 function test_v2_struct_unpack(testFile)
     data = struct('x', 1, 'y', 2, 'z', 3);
-    SaveMatFast_v2(testFile, data);
-    loaded = LoadMatFast_v2(testFile);
+    SaveFast(testFile, data);
+    loaded = LoadFast(testFile);
 
     assert(isfield(loaded, 'x'), 'Missing field x');
     assert(isfield(loaded, 'y'), 'Missing field y');
@@ -292,10 +292,10 @@ function test_v2_struct_unpack(testFile)
 end
 
 function test_v2_selective_load(testFile)
-    SaveMatFast_v2(testFile, 'A', 1, 'B', 2, 'C', 3, 'D', 4);
+    SaveFast(testFile, 'A', 1, 'B', 2, 'C', 3, 'D', 4);
 
     % Load only B and D
-    loaded = LoadMatFast_v2(testFile, 'B', 'D');
+    loaded = LoadFast(testFile, 'B', 'D');
 
     assert(isstruct(loaded), 'Output should be struct');
     assert(isfield(loaded, 'B'), 'Should have field B');
@@ -309,8 +309,8 @@ end
 function test_v2_workspace_load(testFile)
     % This test checks workspace loading functionality
     % Note: Can't easily test assignin in automated test, so we test the struct output instead
-    SaveMatFast_v2(testFile, 'testVar', 42);
-    loaded = LoadMatFast_v2(testFile);
+    SaveFast(testFile, 'testVar', 42);
+    loaded = LoadFast(testFile);
     assert(loaded.testVar == 42, 'Workspace load failed');
 end
 
@@ -327,8 +327,8 @@ function test_v2_all_types(testFile)
         'strc', struct('a', 1), ...
         'cel', {{1, 'two', 3}});
 
-    SaveMatFast_v2(testFile, data);
-    loaded = LoadMatFast_v2(testFile);
+    SaveFast(testFile, data);
+    loaded = LoadFast(testFile);
 
     fields = fieldnames(data);
     for i = 1:length(fields)
@@ -344,8 +344,8 @@ function test_v2_complex_nested(testFile)
                 'data', rand(10), ...
                 'cell', {{1, 'two', struct('three', 3)}})));
 
-    SaveMatFast_v2(testFile, 'complex', data);
-    loaded = LoadMatFast_v2(testFile);
+    SaveFast(testFile, 'complex', data);
+    loaded = LoadFast(testFile);
 
     assert(isequal(data, loaded.complex), 'Complex nested structure mismatch');
 end
@@ -353,13 +353,13 @@ end
 function test_v2_variable_names(testFile)
     % Test valid variable names
     validName = 'valid_Var123';
-    SaveMatFast_v2(testFile, validName, 42);
-    loaded = LoadMatFast_v2(testFile);
+    SaveFast(testFile, validName, 42);
+    loaded = LoadFast(testFile);
     assert(isfield(loaded, validName), 'Valid name not saved');
 
     % Invalid names should error
     try
-        SaveMatFast_v2(testFile, '123invalid', 42);  % Starts with number
+        SaveFast(testFile, '123invalid', 42);  % Starts with number
         error('Should have rejected invalid variable name');
     catch ME
         assert(contains(ME.message, 'variable name'), 'Wrong error for invalid name');
@@ -372,7 +372,7 @@ function test_compat_v1_to_v2(testFile)
     % Save with V1, load with V2
     data = rand(20, 20);
     SaveMatFast(testFile, data);
-    loaded = LoadMatFast_v2(testFile);
+    loaded = LoadFast(testFile);
 
     assert(isstruct(loaded), 'V2 should return struct');
     assert(isfield(loaded, 'data'), 'V2 should create "data" field for V1 files');
@@ -400,8 +400,8 @@ function test_compat_roundtrip(testFile)
         assert(isequal(data, loaded_v1), sprintf('V1 round-trip failed for type %d', i));
 
         % V2 round-trip
-        SaveMatFast_v2(testFile, 'data', data);
-        loaded_v2 = LoadMatFast_v2(testFile);
+        SaveFast(testFile, 'data', data);
+        loaded_v2 = LoadFast(testFile);
         assert(isequal(data, loaded_v2.data), sprintf('V2 round-trip failed for type %d', i));
     end
 end
@@ -422,11 +422,11 @@ function test_perf_vs_matlab(testFile)
 
     % Time MatFast V2
     tic;
-    SaveMatFast_v2(testFile, 'data', data);
+    SaveFast(testFile, 'data', data);
     time_v2_save = toc;
 
     tic;
-    LoadMatFast_v2(testFile);
+    LoadFast(testFile);
     time_v2_load = toc;
 
     % Time MATLAB
@@ -452,11 +452,11 @@ function test_perf_large_arrays(testFile)
         bytes = sz * sz * 8;
 
         tic;
-        SaveMatFast_v2(testFile, 'data', data);
+        SaveFast(testFile, 'data', data);
         t_save = toc;
 
         tic;
-        LoadMatFast_v2(testFile);
+        LoadFast(testFile);
         t_load = toc;
 
         fprintf('    %dx%d (%.1f MB): Save %.3f s | Load %.3f s | Throughput: %.1f MB/s\n', ...
@@ -475,7 +475,7 @@ function test_error_invalid_file()
     end
 
     try
-        LoadMatFast_v2('nonexistent_file_xyz.bin');
+        LoadFast('nonexistent_file_xyz.bin');
         error('Should have thrown error for nonexistent file');
     catch ME
         assert(contains(ME.message, 'exist'), 'Wrong error for nonexistent file');
@@ -500,7 +500,7 @@ end
 function test_error_invalid_inputs()
     % Test V2 with invalid variable name
     try
-        SaveMatFast_v2('test.bin', '123invalid', 42);
+        SaveFast('test.bin', '123invalid', 42);
         error('Should reject invalid variable name');
     catch ME
         assert(contains(ME.message, 'variable name'), 'Wrong error message');
@@ -508,7 +508,7 @@ function test_error_invalid_inputs()
 
     % Test V2 with odd number of arguments
     try
-        SaveMatFast_v2('test.bin', 'A', 1, 'B');  % Missing value for B
+        SaveFast('test.bin', 'A', 1, 'B');  % Missing value for B
         error('Should reject unpaired arguments');
     catch ME
         assert(contains(ME.message, 'pair'), 'Wrong error for unpaired args');

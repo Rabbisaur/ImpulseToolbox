@@ -1,25 +1,25 @@
-function varargout = LoadMatFast_v2(filepath, varargin)
-% LOADMATFAST_V2 - Fast binary load with multi-variable support
+function varargout = LoadFast(filepath, varargin)
+% LOADFAST - Fast binary load with multi-variable support
 %
 % Syntax:
-%   data = LoadMatFast_v2(filepath)                    % Load all variables as struct
-%   [var1, var2] = LoadMatFast_v2(filepath)           % Load all variables as separate outputs
-%   data = LoadMatFast_v2(filepath, 'var1', 'var2')   % Load specific variables
-%   LoadMatFast_v2(filepath)                          % Load into workspace (like load)
+%   data = LoadFast(filepath)                    % Load all variables as struct
+%   [var1, var2] = LoadFast(filepath)           % Load all variables as separate outputs
+%   data = LoadFast(filepath, 'var1', 'var2')   % Load specific variables
+%   LoadFast(filepath)                          % Load into workspace (like load)
 %
 % Examples:
 %   % Load all variables as struct
-%   S = LoadMatFast_v2('test.bin');
+%   S = LoadFast('test.bin');
 %   % Access: S.A, S.B, etc.
 %
 %   % Load specific variables
-%   [A, B] = LoadMatFast_v2('test.bin');
+%   [A, B] = LoadFast('test.bin');
 %
 %   % Load into workspace
-%   LoadMatFast_v2('test.bin');  % Variables appear in caller workspace
+%   LoadFast('test.bin');  % Variables appear in caller workspace
 %
 %   % Load specific variables by name
-%   data = LoadMatFast_v2('test.bin', 'A', 'B');
+%   data = LoadFast('test.bin', 'A', 'B');
 %
 % Features:
 %   - Multi-variable support (like MATLAB load)
@@ -28,27 +28,26 @@ function varargout = LoadMatFast_v2(filepath, varargin)
 %   - Selective variable loading
 %   - Format version detection
 %
-% See also: SaveMatFast_v2, LoadMatFast, SaveMatFast
+% See also: SaveFast, SaveMatFast, LoadMatFast
 
 % Version: 2.0
-% Author: Refactored for multi-variable support
 % Date: 2026-02-12
 
     %% Input Validation
     if ~ischar(filepath) && ~isstring(filepath)
-        error('LoadMatFast_v2:InvalidFilepath', 'Filepath must be a string');
+        error('LoadFast:InvalidFilepath', 'Filepath must be a string');
     end
 
     filepath = char(filepath);
 
     if ~exist(filepath, 'file')
-        error('LoadMatFast_v2:FileNotFound', 'File does not exist: %s', filepath);
+        error('LoadFast:FileNotFound', 'File does not exist: %s', filepath);
     end
 
     %% Open file
     [fp, errormsg] = fopen(filepath, 'r');
     if ~isempty(errormsg) || fp == -1
-        error('LoadMatFast_v2:FileOpenError', ...
+        error('LoadFast:FileOpenError', ...
             'Failed to open file: %s\nError: %s', filepath, errormsg);
     end
 
@@ -69,7 +68,7 @@ function varargout = LoadMatFast_v2(filepath, varargin)
             [varNames, varValues] = readFormatV1(fp);
 
         else
-            error('LoadMatFast_v2:InvalidFormat', ...
+            error('LoadFast:InvalidFormat', ...
                 'Unrecognized file format. Magic bytes: [%d %d]', magic(1), magic(2));
         end
 
@@ -103,7 +102,7 @@ function varargout = LoadMatFast_v2(filepath, varargin)
     else
         % Return as separate outputs
         if nargout > length(varNames)
-            error('LoadMatFast_v2:TooManyOutputs', ...
+            error('LoadFast:TooManyOutputs', ...
                 'File contains %d variables but %d outputs requested', ...
                 length(varNames), nargout);
         end
@@ -120,7 +119,7 @@ function [varNames, varValues] = readFormatV2(fp)
     % Read version
     formatVersion = fread(fp, 1, 'uint16');
     if formatVersion ~= 2
-        warning('LoadMatFast_v2:VersionMismatch', ...
+        warning('LoadFast:VersionMismatch', ...
             'Expected version 2, got version %d', formatVersion);
     end
 
@@ -177,7 +176,7 @@ function [varNames, varValues] = readFormatV1(fp)
         % Simple type with checksum
         checksum = fread(fp, 2, 'uint8');
         if checksum(1) ~= 1 || checksum(2) ~= 1
-            error('LoadMatFast_v2:ChecksumMismatch', ...
+            error('LoadFast:ChecksumMismatch', ...
                 'Version 1 format checksum failed');
         end
 
@@ -246,7 +245,7 @@ function data = readElement(fp)
     end
 
     if isempty(tp)
-        error('LoadMatFast_v2:UnknownTypeID', 'Unknown type ID: %d', type_id);
+        error('LoadFast:UnknownTypeID', 'Unknown type ID: %d', type_id);
     end
 
     % Read data based on type
@@ -322,7 +321,7 @@ function [names, values] = filterVariables(allNames, allValues, requestedNames)
         idx = find(strcmp(allNames, reqName), 1);
 
         if isempty(idx)
-            warning('LoadMatFast_v2:VariableNotFound', ...
+            warning('LoadFast:VariableNotFound', ...
                 'Variable "%s" not found in file', reqName);
         else
             names{end+1} = allNames{idx}; %#ok<AGROW>
@@ -331,7 +330,7 @@ function [names, values] = filterVariables(allNames, allValues, requestedNames)
     end
 
     if isempty(names)
-        error('LoadMatFast_v2:NoVariablesLoaded', ...
+        error('LoadFast:NoVariablesLoaded', ...
             'None of the requested variables were found');
     end
 end
