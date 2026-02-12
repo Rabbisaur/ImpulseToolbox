@@ -62,14 +62,20 @@ else
     else
         num_elements = prod(header.dataDimSize);
     end
-    
-    datamat = fread(fp, num_elements, header.elementType);
-    
-    datamat = reshape(datamat, header.dataDimSize);
-    
-    if strcmp(header.elementType, 'logical')
-         datamat = logical(datamat);
+
+    % Map element type to proper fread precision, preserving class.
+    % 'logical' (7 chars) is truncated to 'logica' by the 6-byte header field.
+    elemType = header.elementType;
+    if strcmp(elemType, 'logica') || strcmp(elemType, 'logical')
+        datamat = logical(fread(fp, num_elements, 'uint8=>uint8'));
+    elseif strcmp(elemType, 'char')
+        datamat = fread(fp, num_elements, '*char');
+    else
+        % Use '*type' prefix to preserve output class (e.g. *single, *int32)
+        datamat = fread(fp, num_elements, ['*' elemType]);
     end
+
+    datamat = reshape(datamat, header.dataDimSize);
 end
 
 fclose(fp);
