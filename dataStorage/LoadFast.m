@@ -21,16 +21,17 @@ function varargout = LoadFast(filepath, varargin)
 %   % Load specific variables by name
 %   data = LoadFast('test.bin', 'A', 'B');
 %
-% Features:
-%   - Multi-variable support (like MATLAB load)
-%   - Backward compatible with original LoadMatFast (version 1)
-%   - Can load into struct or workspace
-%   - Selective variable loading
-%   - Format version detection
+% Supported types:
+%   - All numeric types (double, single, int8-64, uint8-64)
+%   - Complex numeric arrays, sparse arrays
+%   - char, logical, struct, cell
+%   - string, table, timetable, categorical
+%   - datetime, duration, calendarDuration
+%   - containers.Map, function_handle
 %
 % See also: SaveFast, SaveMatFast, LoadMatFast
 
-% Version: 2.0
+% Version: 3.0
 % Date: 2026-02-12
 
     %% Input Validation
@@ -59,8 +60,8 @@ function varargout = LoadFast(filepath, varargin)
         magic = fread(fp, 2, 'uint8');
 
         if isequal(magic, [77; 70])  % 'MF'
-            % Version 2 format
-            [varNames, varValues] = readFormatV2(fp);
+            % Version 2 or 3 format
+            [varNames, varValues] = readFormatV2V3(fp);
 
         elseif isequal(magic, [1; 1])
             % Version 1 format (original SaveMatFast)
@@ -113,14 +114,14 @@ end
 
 %% Format Readers
 
-function [varNames, varValues] = readFormatV2(fp)
-    % Read Version 2 format (multi-variable)
+function [varNames, varValues] = readFormatV2V3(fp)
+    % Read Version 2/3 format (multi-variable)
 
     % Read version
     formatVersion = fread(fp, 1, 'uint16');
-    if formatVersion ~= 2
+    if formatVersion ~= 2 && formatVersion ~= 3
         warning('LoadFast:VersionMismatch', ...
-            'Expected version 2, got version %d', formatVersion);
+            'Expected version 2 or 3, got version %d', formatVersion);
     end
 
     % Read number of variables
@@ -128,8 +129,7 @@ function [varNames, varValues] = readFormatV2(fp)
 
     % Read timestamp (informational only)
     timestamp_len = fread(fp, 1, 'uint8');
-    timestamp = fread(fp, timestamp_len, '*char')';
-    % (timestamp available but not used)
+    timestamp = fread(fp, timestamp_len, '*char')'; %#ok<NASGU>
 
     % Read variables
     varNames = cell(1, numVars);
@@ -207,73 +207,155 @@ function [varNames, varValues] = readFormatV1(fp)
 end
 
 function data = readElement(fp)
-    % Recursive element reader
+    % Recursive element reader with bit-flag decoding
 
-    % Read type ID
-    type_id = fread(fp, 1, 'uint8');
+    % Read type ID byte
+    raw_type_id = fread(fp, 1, 'uint8');
 
-    if isempty(type_id) || type_id == 0
+    if isempty(raw_type_id) || raw_type_id == 0
         % Empty element
-        if type_id == 0
+        if raw_type_id == 0
             % Read class name
             class_len = fread(fp, 1, 'uint8');
             className = fread(fp, class_len, '*char')';
-            % Return empty array of that class
-            data = feval(className, []);
+            % Read dimensions
+            ndims_val = fread(fp, 1, 'uint8');
+            dims = fread(fp, ndims_val, 'double')';
+            % Return empty array of that class with correct shape
+            if strcmp(className, 'cell')
+                data = cell(dims);
+            elseif strcmp(className, 'struct')
+                data = reshape(struct(), dims);
+            else
+                data = cast(zeros(dims), className);
+            end
         else
             data = [];
         end
         return;
     end
 
-    % Read dimensions
-    ndims_val = fread(fp, 1, 'uint8');
-    dims = fread(fp, ndims_val, 'double')';
-    num_elements = prod(dims);
+    % Decode bit flags
+    is_complex = bitand(raw_type_id, 64) > 0;   % bit 6
+    is_sparse  = bitand(raw_type_id, 128) > 0;  % bit 7
+    base_id    = bitand(raw_type_id, 63);        % bits 0-5
 
-    % Type mapping
-    typeMap = {1,'double'; 2,'single'; 3,'int8'; 4,'uint8'; 5,'int16'; ...
-               6,'uint16'; 7,'int32'; 8,'uint32'; 9,'int64'; 10,'uint64'; ...
-               11,'char'; 12,'logical'; 20,'struct'; 21,'cell'};
-
-    tp = '';
-    for i = 1:size(typeMap, 1)
-        if typeMap{i,1} == type_id
-            tp = typeMap{i,2};
-            break;
-        end
-    end
-
-    if isempty(tp)
-        error('LoadFast:UnknownTypeID', 'Unknown type ID: %d', type_id);
-    end
-
-    % Read data based on type
-    if type_id < 20
-        % Simple type
-        if type_id == 11  % char
-            data = fread(fp, num_elements, '*char');
-        elseif type_id == 12  % logical
-            data = fread(fp, num_elements, 'uint8=>uint8');
-            data = logical(data);
-        else
-            data = fread(fp, num_elements, ['*' tp]);
-        end
-        data = reshape(data, dims);
-
-    elseif type_id == 20
-        % Struct
-        data = readStruct(fp, dims);
-
-    elseif type_id == 21
-        % Cell
-        data = readCell(fp, dims);
+    % Dispatch on base type
+    if is_sparse
+        data = readSparse(fp, base_id, is_complex);
+    elseif is_complex && base_id >= 1 && base_id <= 10
+        data = readComplex(fp, base_id);
+    elseif base_id >= 1 && base_id <= 12
+        data = readSimple(fp, base_id);
+    elseif base_id == 20
+        data = readStructType(fp);
+    elseif base_id == 21
+        data = readCellType(fp);
+    elseif base_id == 30
+        data = readString(fp);
+    elseif base_id == 31
+        data = readTable(fp);
+    elseif base_id == 32
+        data = readTimetable(fp);
+    elseif base_id == 33
+        data = readCategorical(fp);
+    elseif base_id == 34
+        data = readDatetime(fp);
+    elseif base_id == 35
+        data = readDuration(fp);
+    elseif base_id == 36
+        data = readCalendarDuration(fp);
+    elseif base_id == 37
+        data = readContainersMap(fp);
+    elseif base_id == 38
+        data = readFunctionHandle(fp);
+    else
+        error('LoadFast:UnknownTypeID', 'Unknown type ID: %d (base: %d)', raw_type_id, base_id);
     end
 end
 
-function data = readStruct(fp, dims)
-    % Read struct array
+%% Type-specific readers
 
+function tp = baseIdToType(base_id)
+    types = {'double','single','int8','uint8','int16','uint16', ...
+             'int32','uint32','int64','uint64','char','logical'};
+    if base_id >= 1 && base_id <= 12
+        tp = types{base_id};
+    else
+        error('LoadFast:InvalidBaseId', 'Invalid base type ID: %d', base_id);
+    end
+end
+
+function data = readSimple(fp, base_id)
+    % Read simple numeric/char/logical array
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
+    num_elements = prod(dims);
+    tp = baseIdToType(base_id);
+
+    if base_id == 11  % char
+        data = fread(fp, num_elements, '*char');
+    elseif base_id == 12  % logical
+        data = logical(fread(fp, num_elements, 'uint8=>uint8'));
+    else
+        data = fread(fp, num_elements, ['*' tp]);
+    end
+    data = reshape(data, dims);
+end
+
+function data = readComplex(fp, base_id)
+    % Read complex numeric array
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
+    num_elements = prod(dims);
+    tp = baseIdToType(base_id);
+
+    re = fread(fp, num_elements, ['*' tp]);
+    im = fread(fp, num_elements, ['*' tp]);
+    data = complex(re, im);
+    data = reshape(data, dims);
+end
+
+function data = readSparse(fp, base_id, is_complex)
+    % Read sparse array
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
+    tp = baseIdToType(base_id);
+
+    nz = fread(fp, 1, 'uint64');
+
+    if nz == 0
+        if base_id == 12
+            data = sparse(dims(1), dims(2));
+            data = data ~= 0; % sparse logical
+        else
+            data = sparse(dims(1), dims(2));
+        end
+        return;
+    end
+
+    rows = fread(fp, nz, 'uint64');
+    cols = fread(fp, nz, 'uint64');
+
+    if is_complex
+        re = fread(fp, nz, ['*' tp]);
+        im = fread(fp, nz, ['*' tp]);
+        vals = complex(double(re), double(im));
+    else
+        if base_id == 12 % sparse logical
+            vals = logical(fread(fp, nz, 'uint8=>uint8'));
+        else
+            vals = fread(fp, nz, ['*' tp]);
+        end
+    end
+
+    data = sparse(double(rows), double(cols), vals, dims(1), dims(2));
+end
+
+function data = readStructType(fp)
+    % Read struct array
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
     num_elements = prod(dims);
 
     % Read field names
@@ -297,15 +379,292 @@ function data = readStruct(fp, dims)
     data = reshape(data, dims);
 end
 
-function data = readCell(fp, dims)
+function data = readCellType(fp)
     % Read cell array
-
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
     num_elements = prod(dims);
-    data = cell(dims);
 
+    data = cell(dims);
     for k = 1:num_elements
         data{k} = readElement(fp);
     end
+end
+
+function data = readString(fp)
+    % Read string array
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
+    num_elements = prod(dims);
+
+    data = strings(dims);
+    for k = 1:num_elements
+        is_missing = fread(fp, 1, 'uint8');
+        if is_missing
+            data(k) = string(missing);
+        else
+            len = fread(fp, 1, 'uint32');
+            if len > 0
+                chars = fread(fp, len, '*char')';
+                data(k) = string(chars);
+            else
+                data(k) = "";
+            end
+        end
+    end
+end
+
+function data = readTable(fp)
+    % Read table
+    nrows = fread(fp, 1, 'uint64');
+    nvars = fread(fp, 1, 'uint32');
+
+    % Read variable names
+    varNames = readElement(fp);
+
+    % Row names
+    has_rownames = fread(fp, 1, 'uint8');
+    if has_rownames
+        rowNames = readElement(fp);
+    else
+        rowNames = {};
+    end
+
+    % Variable units
+    has_units = fread(fp, 1, 'uint8');
+    if has_units
+        units = readElement(fp);
+    else
+        units = {};
+    end
+
+    % Variable descriptions
+    has_descr = fread(fp, 1, 'uint8');
+    if has_descr
+        descr = readElement(fp);
+    else
+        descr = {};
+    end
+
+    % Read columns
+    cols = cell(1, nvars);
+    for i = 1:nvars
+        cols{i} = readElement(fp);
+    end
+
+    % Construct table
+    data = table(cols{:}, 'VariableNames', varNames);
+
+    if ~isempty(rowNames)
+        data.Properties.RowNames = rowNames;
+    end
+    if ~isempty(units)
+        data.Properties.VariableUnits = units;
+    end
+    if ~isempty(descr)
+        data.Properties.VariableDescriptions = descr;
+    end
+end
+
+function data = readTimetable(fp)
+    % Read timetable
+    nrows = fread(fp, 1, 'uint64'); %#ok<NASGU>
+    nvars = fread(fp, 1, 'uint32');
+
+    % Read variable names
+    varNames = readElement(fp);
+
+    % Read row times
+    rowTimes = readElement(fp);
+
+    % Variable units
+    has_units = fread(fp, 1, 'uint8');
+    if has_units
+        units = readElement(fp);
+    else
+        units = {};
+    end
+
+    % Variable descriptions
+    has_descr = fread(fp, 1, 'uint8');
+    if has_descr
+        descr = readElement(fp);
+    else
+        descr = {};
+    end
+
+    % Read columns
+    cols = cell(1, nvars);
+    for i = 1:nvars
+        cols{i} = readElement(fp);
+    end
+
+    % Construct timetable
+    data = timetable(cols{:}, 'RowTimes', rowTimes, 'VariableNames', varNames);
+
+    if ~isempty(units)
+        data.Properties.VariableUnits = units;
+    end
+    if ~isempty(descr)
+        data.Properties.VariableDescriptions = descr;
+    end
+end
+
+function data = readCategorical(fp)
+    % Read categorical
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
+    num_elements = prod(dims);
+
+    is_ordinal = fread(fp, 1, 'uint8');
+    is_protected = fread(fp, 1, 'uint8');
+
+    num_cats = fread(fp, 1, 'uint32');
+    cats = cell(1, num_cats);
+    for i = 1:num_cats
+        name_len = fread(fp, 1, 'uint32');
+        cats{i} = fread(fp, name_len, '*char')';
+    end
+
+    codes = fread(fp, num_elements, 'uint32');
+
+    % Reconstruct categorical
+    % Map codes to category names; code 0 = undefined
+    cellData = cell(dims);
+    for k = 1:num_elements
+        if codes(k) == 0
+            cellData{k} = '';  % will become <undefined>
+        else
+            cellData{k} = cats{codes(k)};
+        end
+    end
+
+    if is_ordinal
+        data = categorical(cellData, cats, 'Ordinal', true);
+    else
+        data = categorical(cellData, cats);
+    end
+
+    if is_protected && ~is_ordinal
+        data = setcats(data, cats);
+        data = categorical(data, cats, 'Ordinal', false);
+        % Protected but not ordinal: use addcats/setcats via protected categorical
+        % Actually, protected categorical is created via ordinal or specific constructor
+        % For now, just create with the categories specified
+    end
+
+    data = reshape(data, dims);
+end
+
+function data = readDatetime(fp)
+    % Read datetime
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
+    num_elements = prod(dims);
+
+    % Timezone
+    has_tz = fread(fp, 1, 'uint8');
+    if has_tz
+        tz_len = fread(fp, 1, 'uint8');
+        tz = fread(fp, tz_len, '*char')';
+    else
+        tz = '';
+    end
+
+    % Format
+    fmt_len = fread(fp, 1, 'uint8');
+    if fmt_len > 0
+        fmt = fread(fp, fmt_len, '*char')';
+    else
+        fmt = '';
+    end
+
+    % Read numeric data
+    numData = fread(fp, num_elements, 'double');
+
+    % Reconstruct
+    if isempty(tz)
+        % Saved as datenum
+        data = datetime(numData, 'ConvertFrom', 'datenum');
+    else
+        % Saved as posixtime
+        data = datetime(numData, 'ConvertFrom', 'posixtime', 'TimeZone', tz);
+    end
+
+    if ~isempty(fmt)
+        data.Format = fmt;
+    end
+
+    data = reshape(data, dims);
+end
+
+function data = readDuration(fp)
+    % Read duration
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
+    num_elements = prod(dims);
+
+    % Format
+    fmt_len = fread(fp, 1, 'uint8');
+    if fmt_len > 0
+        fmt = fread(fp, fmt_len, '*char')';
+    else
+        fmt = '';
+    end
+
+    % Read milliseconds
+    ms = fread(fp, num_elements, 'double');
+    data = milliseconds(ms);
+
+    if ~isempty(fmt)
+        data.Format = fmt;
+    end
+
+    data = reshape(data, dims);
+end
+
+function data = readCalendarDuration(fp)
+    % Read calendarDuration
+    ndims_val = fread(fp, 1, 'uint8');
+    dims = fread(fp, ndims_val, 'double')';
+    num_elements = prod(dims);
+
+    months_total = fread(fp, num_elements, 'int32');
+    days_total = fread(fp, num_elements, 'int32');
+    millis = fread(fp, num_elements, 'double');
+
+    data = calmonths(double(months_total)) + caldays(double(days_total)) + milliseconds(millis);
+    data = reshape(data, dims);
+end
+
+function data = readContainersMap(fp)
+    % Read containers.Map
+    num_entries = fread(fp, 1, 'uint32');
+
+    % Key type
+    kt_len = fread(fp, 1, 'uint8');
+    keyType = fread(fp, kt_len, '*char')'; %#ok<NASGU>
+
+    % Value type
+    vt_len = fread(fp, 1, 'uint8');
+    valueType = fread(fp, vt_len, '*char')'; %#ok<NASGU>
+
+    % Keys and values
+    k = readElement(fp);
+    v = readElement(fp);
+
+    if num_entries == 0
+        data = containers.Map();
+    else
+        data = containers.Map(k, v);
+    end
+end
+
+function data = readFunctionHandle(fp)
+    % Read function_handle
+    str_len = fread(fp, 1, 'uint16');
+    funcStr = fread(fp, str_len, '*char')';
+    data = str2func(funcStr);
 end
 
 %% Helper Functions

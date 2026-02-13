@@ -11,7 +11,9 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nchore: Remove 72 duplicate files to reduce repository size\n\nRemoved duplicate files ending in \"1\" suffix that were identical copies\nof their original versions. All files verified as true duplicates via\nMD5 hash comparison - no newer versions were deleted.\n\n- 29 .mat data files \\(including 1.6 MB RawData1.mat\\)\n- 9 .dll library duplicates\n- 10 .ecp configuration duplicates\n- 5 .fig GUI backup files\n- 19 documentation/text duplicates\n\nTotal space reclaimed: 14 MB\n\nVerified by analyze_versions.m script which confirmed all files were\nbyte-for-byte identical with same timestamps.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(git mv:*)",
+      "Bash(powershell:*)"
     ]
   }
 }

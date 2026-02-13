@@ -165,16 +165,11 @@ function write_element(fp, data)
         case 'struct', type_id = 20;
         case 'cell',   type_id = 21;
         otherwise
-            warning(['Skipping unsupported type inside struct/cell: ' tp]);
-            type_id = 0; % Unknown
+            error('SaveMatFast:UnsupportedType', ...
+                'Unsupported type inside struct/cell: %s. Cannot serialize.', tp);
     end
     
     fwrite(fp, uint8(type_id), 'uint8');
-    
-    if type_id == 0
-        return; 
-    end
-    
     fwrite(fp, uint8(ndims_val), 'uint8');
     fwrite(fp, double(dims), 'double');
     
