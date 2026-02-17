@@ -13,7 +13,8 @@
       "Bash(git commit:*)",
       "Bash(git rm:*)",
       "Bash(git mv:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(where:*)"
     ]
   }
 }
